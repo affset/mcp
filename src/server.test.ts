@@ -34,14 +34,16 @@ describe("server tool registration", () => {
     assert.ok(names.has("whoami"));
     assert.ok(names.has("get_stats"));
     assert.ok(names.has("list_conversions"));
+    assert.ok(names.has("list_team"));
     assert.equal(names.has("create_campaign"), false);
     assert.equal(names.has("create_zone"), false);
     assert.equal(names.has("update_campaign"), false);
+    assert.equal(names.has("create_team_member"), false);
   });
 
-  it("publishes confirmation defaults for both create tools", async () => {
+  it("publishes confirmation defaults for all three create tools", async () => {
     const tools = await listedTools(false);
-    for (const name of ["create_campaign", "create_zone"]) {
+    for (const name of ["create_campaign", "create_zone", "create_team_member"]) {
       const tool = tools.find((candidate) => candidate.name === name);
       assert.ok(tool, `${name} should be registered`);
       const confirm = tool.inputSchema.properties?.confirm as { default?: unknown } | undefined;

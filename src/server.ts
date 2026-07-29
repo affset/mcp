@@ -15,6 +15,11 @@ import {
 } from "./tools/listCampaigns.js";
 import { listZones, listZonesInputSchema, LIST_ZONES_DESCRIPTION } from "./tools/listZones.js";
 import { listTeam, listTeamInputSchema, LIST_TEAM_DESCRIPTION } from "./tools/listTeam.js";
+import {
+  createTeamMember,
+  createTeamMemberInputSchema,
+  CREATE_TEAM_MEMBER_DESCRIPTION,
+} from "./tools/createTeamMember.js";
 import { createZone, createZoneInputSchema, CREATE_ZONE_DESCRIPTION } from "./tools/createZone.js";
 import { getZoneUrl, getZoneUrlInputSchema, GET_ZONE_URL_DESCRIPTION } from "./tools/getZoneUrl.js";
 import {
@@ -195,6 +200,22 @@ export function createServer(config: Config): McpServer {
       },
     },
     (args) => listTeam(client, args),
+  );
+
+  registerTool(
+    "create_team_member",
+    {
+      title: "Invite a team member",
+      description: CREATE_TEAM_MEMBER_DESCRIPTION,
+      inputSchema: createTeamMemberInputSchema,
+      annotations: {
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: false,
+        openWorldHint: true,
+      },
+    },
+    (args) => createTeamMember(client, args),
   );
 
   registerTool(

@@ -28,8 +28,21 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- `create_team_member` tool: invite a team member (owner, manager, publisher,
+  advertiser, publisher_manager, advertiser_manager) — the gap where an owner
+  had no way to add a publisher/advertiser without leaving chat for the
+  dashboard. A scoped manager key can only create its own managed role,
+  self-assigned; the API enforces this, not the tool. Returns the new API key
+  once, in the confirmed response — `list_team` still never echoes tokens.
+  Dry-run by default. Bounds the echoed token length so a malformed API
+  response cannot flood model context.
+- `create_campaign` points operators at `create_team_member` when the advertiser
+  email does not exist yet.
 - Regression coverage for configuration and client hardening, mutation
   confirmation, read-only tool registration, and tenant-timezone scheduling.
+- README: install directly from GitHub (`npx -y github:affset/mcp`) as an
+  alternative to the npm registry — no npm publish step. Documents restart/cache
+  behavior and recommends commit/tag pins for reproducible deployments.
 
 ## [0.1.0]
 

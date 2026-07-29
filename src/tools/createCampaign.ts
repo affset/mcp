@@ -21,7 +21,8 @@ const NAME_MAX = 120;
 export const CREATE_CAMPAIGN_DESCRIPTION =
   "Create a campaign (offer) in the current namespace from a compact spec: advertiser " +
   "email, offer URL, geo whitelist, payout, name. The advertiser (user_email) is required " +
-  "— it must already exist as a team member (same as the Advertiser dropdown in the dashboard). " +
+  "— it must already exist as a team member (same as the Advertiser dropdown in the dashboard); " +
+  "create one first with create_team_member if needed. " +
   "Everything else gets media-buying defaults: CPA model, " +
   "rate 0 (no internal advertiser billing), created paused, a global payout rule when " +
   "payout is given, and a ready-to-use tracking link prefilled with the sub convention " +
@@ -39,7 +40,7 @@ export const createCampaignInputSchema = {
     .describe(
       "Advertiser email that owns this campaign (required — the API rejects the call without it). " +
         "Must already exist as a team member with the advertiser role; same as the dashboard's " +
-        "Advertiser dropdown. List candidates with list_team.",
+        "Advertiser dropdown. List candidates with list_team, or create one with create_team_member.",
     ),
   offer_url: z
     .string()

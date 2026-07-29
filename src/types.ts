@@ -171,8 +171,16 @@ export interface PayoutRulesResponse {
 export type PayoutRuleResponse = PayoutRule;
 
 /**
- * One team member from GET /api/api-keys?type=user.
- * `token` is present in the API response — never echo it from tools.
+ * One team member from GET /api/api-keys?type=user, or the response of
+ * POST /api/api-keys?type=user (create).
+ *
+ * `token` is present in both. It is not a one-time secret — affset returns it
+ * on every list call to a permitted role, same as the dashboard's "Copy token"
+ * button — but `list_team` deliberately never echoes it anyway, since a
+ * browsing-style "show my team" query is a bad place for live credentials to
+ * repeatedly pass through model context. `create_team_member` is the
+ * considered exception: it echoes the token exactly once, on the one call
+ * that just minted it for the operator to hand to that person.
  */
 export interface TeamMember {
   token?: string;
@@ -185,6 +193,9 @@ export interface TeamMember {
   permissions?: string[];
   manager_email?: string;
 }
+
+/** Response of POST /api/api-keys?type=user — same shape as TeamMember, token always present. */
+export type CreateTeamMemberResponse = TeamMember & { token: string };
 
 export interface TargetingRule {
   id?: number;
