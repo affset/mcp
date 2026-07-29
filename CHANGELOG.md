@@ -6,6 +6,8 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.1.1]
+
 ### Changed
 
 - `create_campaign` and `create_zone` now follow the same dry-run →
@@ -28,6 +30,9 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- MCP Registry metadata: `mcpName` in `package.json` and a root `server.json`
+  (`io.github.affset/mcp`, npm / stdio package with documented env vars) so the
+  server can be listed in the official registry via `mcp-publisher publish`.
 - `create_team_member` tool: invite a team member (owner, manager, publisher,
   advertiser, publisher_manager, advertiser_manager) — the gap where an owner
   had no way to add a publisher/advertiser without leaving chat for the

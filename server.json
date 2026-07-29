@@ -1,0 +1,60 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.affset/mcp",
+  "title": "affset",
+  "description": "Run affset from chat: stats, campaigns, zones, payouts, targeting, and team.",
+  "websiteUrl": "https://github.com/affset/mcp#readme",
+  "repository": {
+    "url": "https://github.com/affset/mcp",
+    "source": "github",
+    "id": "1315956160"
+  },
+  "version": "0.1.1",
+  "packages": [
+    {
+      "registryType": "npm",
+      "identifier": "@affset/mcp",
+      "version": "0.1.1",
+      "transport": {
+        "type": "stdio"
+      },
+      "environmentVariables": [
+        {
+          "name": "AFFSET_BASE_URL",
+          "description": "Origin of your affset ad server API (no path, query, or embedded credentials).",
+          "isRequired": true,
+          "format": "string",
+          "placeholder": "https://api.affset.com"
+        },
+        {
+          "name": "AFFSET_API_KEY",
+          "description": "Tenant API key (Bearer token). Its namespace must match AFFSET_NAMESPACE.",
+          "isRequired": true,
+          "isSecret": true,
+          "format": "string"
+        },
+        {
+          "name": "AFFSET_NAMESPACE",
+          "description": "Tenant namespace this key belongs to (lowercase letters, numbers, hyphens; 3–63 chars).",
+          "isRequired": true,
+          "format": "string",
+          "placeholder": "your-namespace"
+        },
+        {
+          "name": "AFFSET_REQUEST_TIMEOUT_MS",
+          "description": "Optional per-request HTTP timeout in milliseconds (1000–300000).",
+          "isRequired": false,
+          "format": "number",
+          "default": "30000"
+        },
+        {
+          "name": "AFFSET_READ_ONLY",
+          "description": "Optional. Set to true to register only read-only tools (no create/update/delete/cut).",
+          "isRequired": false,
+          "format": "boolean",
+          "default": "false"
+        }
+      ]
+    }
+  ]
+}
