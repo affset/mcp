@@ -2,7 +2,7 @@ import { z } from "zod";
 import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import { AffsetApiError, type AffsetClient } from "../client.js";
 import type { Config } from "../config.js";
-import { mdCell, money } from "../lib/format.js";
+import { mdCell, moneyPrecise } from "../lib/format.js";
 import { buildTrackingLink, fetchTenantIntegration } from "../lib/integrationUrls.js";
 import { errorResult, textError, textResult } from "../lib/toolResult.js";
 import { httpUrlError } from "../lib/urls.js";
@@ -28,7 +28,8 @@ export const CREATE_CAMPAIGN_DESCRIPTION =
   "(source_click_id + sub1..sub5, named by the tenant's sub labels). The campaign is " +
   "created paused, so activate it before sending traffic through either URL. " +
   "Geo whitelist applies to /serve rotation only; the tracking link itself is not geo-gated. " +
-  "No money is spent by this call; the result echoes exactly what was created.";
+  "DRY-RUN by default; pass confirm=true to apply. No money is spent by this call; the " +
+  "result echoes exactly what was created.";
 
 export const createCampaignInputSchema = {
   user_email: z
@@ -78,6 +79,10 @@ export const createCampaignInputSchema = {
       "Traffic-source zone for the tracking link. Optional when the namespace has exactly " +
         "one active zone — it is picked automatically; otherwise the tool lists zones to choose from.",
     ),
+  confirm: z
+    .boolean()
+    .default(false)
+    .describe("false = dry-run preview (default). true = create the campaign."),
 };
 
 type CreateCampaignArgs = {
@@ -87,6 +92,7 @@ type CreateCampaignArgs = {
   geo?: string[];
   payout?: number;
   zone_id?: string;
+  confirm: boolean;
 };
 
 export async function createCampaign(
@@ -105,6 +111,7 @@ export async function createCampaign(
     const geoCodes = geo.codes;
 
     // 2. Resolve zone + tenant integration settings (link base, sub labels) in parallel.
+    //    Safe for dry-run — both are reads.
     const [zoneResult, integration] = await Promise.all([
       resolveZone(client, args.zone_id),
       fetchTenantIntegration(client, config),
@@ -114,10 +121,44 @@ export async function createCampaign(
     }
     const { zone, inactiveWarning } = zoneResult;
 
+    const name = args.name?.trim() || defaultName(offerUrl, geoCodes, args.payout);
+    const geoNote = geoCodes.length
+      ? `${geoCodes.join(", ")} (whitelist; enforced on /serve, not on the tracking link)`
+      : "worldwide (no geo rule)";
+    const payoutPreview =
+      args.payout !== undefined
+        ? `${moneyPrecise(args.payout)} per conversion (global rule)`
+        : "_none set — add one to track revenue and use {payout} in postbacks_";
+
+    const summaryTable = [
+      "| Field | Value |",
+      "|---|---|",
+      `| Name | ${mdCell(name)} |`,
+      `| Advertiser | ${mdCell(args.user_email)} |`,
+      `| Offer URL | ${mdCell(args.offer_url)} |`,
+      `| Geo | ${geoNote} |`,
+      `| Payout | ${payoutPreview} |`,
+      `| Model | CPA, rate 0 (defaults — no internal advertiser billing) |`,
+      `| Status | paused (activate before sending traffic through either URL) |`,
+      `| Zone | ${mdCell(zone.name)} (\`${zone.id}\`) — ${zonePostbackNote(zone)} |`,
+    ].join("\n");
+
+    if (!args.confirm) {
+      return textResult(
+        [
+          "**Dry run** — would create a campaign with:",
+          "",
+          summaryTable,
+          ...(inactiveWarning ? ["", inactiveWarning] : []),
+          "",
+          "Call again with `confirm: true` to create it. The tracking link is returned after create.",
+        ].join("\n"),
+      );
+    }
+
     // 3. Create the campaign with media-buying defaults. rate stays 0 so internal
     //    advertiser billing/budget enforcement is untouched; revenue comes from the
     //    payout rule. The API forces status=paused on create.
-    const name = args.name?.trim() || defaultName(offerUrl, geoCodes, args.payout);
     const created = await client.post<CreateCampaignResponse>("/api/campaigns", {
       name,
       user_email: args.user_email.trim(),
@@ -142,7 +183,7 @@ export async function createCampaign(
     if (args.payout !== undefined) {
       try {
         await client.post(`/api/campaigns/${created.id}/payout_rules`, { payout: args.payout });
-        payoutNote = `${money(args.payout)} per conversion (global rule)`;
+        payoutNote = `${moneyPrecise(args.payout)} per conversion (global rule)`;
       } catch (err) {
         const message = err instanceof AffsetApiError ? err.message : String(err);
         payoutNote = `⚠️ campaign created, but setting the payout rule failed: ${message}`;
@@ -153,10 +194,6 @@ export async function createCampaign(
     const trackingLink = buildTrackingLink(integration.baseUrl, created.id, zone.id, {
       subLabels: integration.subLabels,
     });
-
-    const geoNote = geoCodes.length
-      ? `${geoCodes.join(", ")} (whitelist; enforced on /serve, not on this tracking link)`
-      : "worldwide (no geo rule)";
 
     return textResult(
       [
@@ -211,7 +248,7 @@ function normalizeGeo(raw: string[] | undefined): { codes: string[] } | { error:
 function defaultName(offerUrl: URL, geo: string[], payout?: number): string {
   const parts = [offerUrl.hostname.replace(/^www\./, "")];
   if (geo.length) parts.push(geo.join("+"));
-  if (payout !== undefined) parts.push(money(payout).replace(/\.00$/, ""));
+  if (payout !== undefined) parts.push(moneyPrecise(payout).replace(/\.?0+$/, ""));
   const name = parts.join(" ");
   return name.length <= NAME_MAX ? name : `${name.slice(0, NAME_MAX - 1)}…`;
 }

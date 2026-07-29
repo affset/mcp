@@ -22,6 +22,7 @@
   "files": [
     "dist",
     "!dist/**/*.test.*",
+    "!dist/**/*.map",
     "README.md",
     ".env.example"
   ],

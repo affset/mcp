@@ -18,8 +18,18 @@ export interface Config {
 }
 
 const DEFAULT_TIMEOUT_MS = 30_000;
+const MAX_TIMEOUT_MS = 300_000;
 
 const TRUTHY = new Set(["1", "true", "yes", "on"]);
+const FALSY = new Set(["0", "false", "no", "off"]);
+
+/**
+ * Same rules as lite-adserver signup: lowercase alnum + hyphens, 3–63 chars,
+ * no leading/trailing hyphen, no consecutive hyphens. Keeps whoami's
+ * `https://{namespace}.affset.com` URL from embedding attacker-chosen junk if
+ * someone pastes a weird AFFSET_NAMESPACE into their MCP client config.
+ */
+const NAMESPACE_RE = /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/;
 
 /** Loopback hosts allowed to stay on plain http — everything else must be https. */
 function isLoopbackHost(hostname: string): boolean {
@@ -29,6 +39,19 @@ function isLoopbackHost(hostname: string): boolean {
     hostname === "::1" ||
     hostname.endsWith(".localhost")
   );
+}
+
+function namespaceError(namespace: string): string | null {
+  if (namespace.length < 3 || namespace.length > 63) {
+    return "AFFSET_NAMESPACE must be 3–63 characters.";
+  }
+  if (!NAMESPACE_RE.test(namespace) || namespace.includes("--")) {
+    return (
+      "AFFSET_NAMESPACE must be lowercase letters, numbers, and hyphens only " +
+      "(no leading/trailing or consecutive hyphens)."
+    );
+  }
+  return null;
 }
 
 /**
@@ -52,6 +75,9 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
     );
   }
 
+  const nsErr = namespaceError(namespace!);
+  if (nsErr) throw new Error(nsErr);
+
   const normalized = baseUrl!.replace(/\/+$/, "");
   let parsed: URL;
   try {
@@ -61,6 +87,14 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
   }
   if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
     throw new Error(`AFFSET_BASE_URL must be http(s), got ${parsed.protocol}`);
+  }
+  if (parsed.username || parsed.password) {
+    throw new Error("AFFSET_BASE_URL must not contain embedded credentials.");
+  }
+  if ((parsed.pathname !== "/" && parsed.pathname !== "") || parsed.search || parsed.hash) {
+    throw new Error(
+      "AFFSET_BASE_URL must be an origin only (scheme, host, and optional port; no path, query, or fragment).",
+    );
   }
   // Plain http sends the Bearer API key in cleartext. Only loopback (local dev /
   // wrangler dev) is exempt — anything else must be https.
@@ -75,16 +109,27 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
   let requestTimeoutMs = DEFAULT_TIMEOUT_MS;
   if (timeoutRaw) {
     const n = Number(timeoutRaw);
-    if (!Number.isFinite(n) || n < 1000) {
-      throw new Error("AFFSET_REQUEST_TIMEOUT_MS must be a number >= 1000.");
+    if (!Number.isSafeInteger(n) || n < 1000 || n > MAX_TIMEOUT_MS) {
+      throw new Error(
+        `AFFSET_REQUEST_TIMEOUT_MS must be an integer between 1000 and ${MAX_TIMEOUT_MS}.`,
+      );
     }
-    requestTimeoutMs = Math.floor(n);
+    requestTimeoutMs = n;
   }
 
-  const readOnly = TRUTHY.has((env.AFFSET_READ_ONLY ?? "").trim().toLowerCase());
+  const readOnlyRaw = (env.AFFSET_READ_ONLY ?? "").trim().toLowerCase();
+  let readOnly = false;
+  if (readOnlyRaw) {
+    if (TRUTHY.has(readOnlyRaw)) readOnly = true;
+    else if (!FALSY.has(readOnlyRaw)) {
+      throw new Error(
+        "AFFSET_READ_ONLY must be a boolean value: true/false, 1/0, yes/no, or on/off.",
+      );
+    }
+  }
 
   return {
-    baseUrl: normalized,
+    baseUrl: parsed.origin,
     apiKey: apiKey!,
     namespace: namespace!,
     requestTimeoutMs,

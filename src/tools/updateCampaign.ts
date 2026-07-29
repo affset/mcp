@@ -3,6 +3,7 @@ import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import { AffsetApiError, type AffsetClient } from "../client.js";
 import { displayValue, renderDiff, type FieldChange } from "../lib/patch.js";
 import { money } from "../lib/format.js";
+import { parseCampaignDateBound } from "../lib/time.js";
 import { errorResult, textError, textResult } from "../lib/toolResult.js";
 import { httpUrlError } from "../lib/urls.js";
 import {
@@ -41,11 +42,15 @@ export const updateCampaignInputSchema = {
   start_date: z
     .union([z.string(), z.number(), z.null()])
     .optional()
-    .describe("Start bound: YYYY-MM-DD (local start of day), epoch ms, or null to clear."),
+    .describe(
+      "Start bound: YYYY-MM-DD (tenant-local start of day), ISO timestamp with Z/UTC offset, epoch ms, or null to clear.",
+    ),
   end_date: z
     .union([z.string(), z.number(), z.null()])
     .optional()
-    .describe("End bound: YYYY-MM-DD (local end of day), epoch ms, or null to clear."),
+    .describe(
+      "End bound: YYYY-MM-DD (tenant-local end of day), ISO timestamp with Z/UTC offset, epoch ms, or null to clear.",
+    ),
   daily_budget: z
     .union([z.number().min(0), z.null()])
     .optional()
@@ -84,7 +89,11 @@ export async function updateCampaign(
     const campaignId = String(args.campaign_id).trim();
     if (!campaignId) return textError("campaign_id is required.");
 
-    const patch = buildPatch(args);
+    const needsTenantTimezone = [args.start_date, args.end_date].some(
+      (value) => typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value.trim()),
+    );
+    const timeZone = needsTenantTimezone ? await client.getRequiredTenantTimezone() : "UTC";
+    const patch = buildPatch(args, timeZone);
     if ("error" in patch) return textError(patch.error);
     if (Object.keys(patch.body).length === 0) {
       return textError(
@@ -149,6 +158,7 @@ export async function updateCampaign(
 
 function buildPatch(
   args: UpdateCampaignArgs,
+  timeZone: string,
 ): { body: Record<string, string | number | null> } | { error: string } {
   const body: Record<string, string | number | null> = {};
 
@@ -170,12 +180,12 @@ function buildPatch(
   if (args.total_budget !== undefined) body.total_budget = args.total_budget;
 
   if (args.start_date !== undefined) {
-    const parsed = parseDateBound(args.start_date, "start_date");
+    const parsed = parseDateBound(args.start_date, "start_date", timeZone);
     if ("error" in parsed) return parsed;
     body.start_date = parsed.value;
   }
   if (args.end_date !== undefined) {
-    const parsed = parseDateBound(args.end_date, "end_date");
+    const parsed = parseDateBound(args.end_date, "end_date", timeZone);
     if ("error" in parsed) return parsed;
     body.end_date = parsed.value;
   }
@@ -184,35 +194,22 @@ function buildPatch(
 }
 
 /**
- * YYYY-MM-DD → local start-of-day for start_date, end-of-day for end_date
+ * YYYY-MM-DD → tenant-local start-of-day for start_date, end-of-day for end_date
  * (so "end 2026-07-25" keeps the campaign live through that calendar day).
  */
 function parseDateBound(
   value: string | number | null,
   label: "start_date" | "end_date",
+  timeZone: string,
 ): { value: number | null } | { error: string } {
-  if (value === null) return { value: null };
-  if (typeof value === "number") {
-    if (!Number.isFinite(value) || value <= 0) {
-      return { error: `${label} must be a positive epoch ms, YYYY-MM-DD, or null.` };
-    }
-    return { value };
+  try {
+    return {
+      value: parseCampaignDateBound(value, label === "start_date" ? "start" : "end", timeZone),
+    };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    return { error: `Invalid ${label}: ${message}` };
   }
-  const trimmed = value.trim();
-  if (/^\d+$/.test(trimmed)) return { value: parseInt(trimmed, 10) };
-  if (/^\d{4}-\d{2}-\d{2}$/.test(trimmed)) {
-    const [y, m, d] = trimmed.split("-").map(Number);
-    const ms =
-      label === "end_date"
-        ? new Date(y, m - 1, d, 23, 59, 59, 999).getTime()
-        : new Date(y, m - 1, d, 0, 0, 0, 0).getTime();
-    return { value: ms };
-  }
-  const parsed = Date.parse(trimmed);
-  if (Number.isNaN(parsed)) {
-    return { error: `Invalid ${label} "${value}". Use YYYY-MM-DD, ISO, epoch ms, or null.` };
-  }
-  return { value: parsed };
 }
 
 /** Reject inverted ranges against the patch and/or the existing campaign. */

@@ -54,11 +54,15 @@ export const cutZonesInputSchema = {
   from: z
     .string()
     .optional()
-    .describe("Explicit start bound: YYYY-MM-DD (local start of day), ISO, or epoch ms."),
+    .describe(
+      "Explicit start bound: YYYY-MM-DD (tenant-local start of day), ISO timestamp with Z/UTC offset, or epoch ms.",
+    ),
   to: z
     .string()
     .optional()
-    .describe("Explicit end bound: YYYY-MM-DD (local end of day), ISO, or epoch ms."),
+    .describe(
+      "Explicit end bound: YYYY-MM-DD (tenant-local end of day), ISO timestamp with Z/UTC offset, or epoch ms.",
+    ),
   confirm: z
     .boolean()
     .default(false)

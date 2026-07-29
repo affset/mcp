@@ -6,33 +6,42 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
-### Added
-
-- `AFFSET_READ_ONLY` environment flag. When set, only read-only tools are
-  registered — every create / update / delete / cut tool is removed from the
-  server, not just gated behind `confirm`. Recommended for reporting sessions and
-  auto-approving MCP clients.
-- `whoami` tool: reports the tenant the server is bound to (namespace, API base,
-  derived dashboard URL, and — when readable — company, timezone, custom API
-  domain).
-- Untrusted-data handling: conversion payloads, subs, and source/click ids are now
-  length-capped and escaped before rendering, and the conversion-payload block is
-  explicitly labelled as untrusted third-party data.
-- `MIT` license, `SECURITY.md`, `CONTRIBUTING.md`, and this changelog.
-- CI (`.github/workflows/ci.yml`): `check-all` on Node 18/20/22, plus an
-  `npm publish --dry-run` job to catch packaging regressions before a release.
-- Dependabot for npm and GitHub Actions, weekly.
-- ESLint (flat config, typescript-eslint) and Prettier; `npm run lint` /
-  `npm run format` / `npm run check-all` gate on both.
-
 ### Changed
 
-- `AFFSET_BASE_URL` must be `https` for non-loopback hosts; plain `http` is
-  rejected so the API key is never sent in cleartext.
-- `mdCell` now escapes backticks and `[` in addition to pipes and newlines, so
-  attacker-influenced table cells cannot forge Markdown structure.
+- `create_campaign` and `create_zone` now follow the same dry-run →
+  `confirm: true` flow as every other mutation (they previously applied
+  immediately).
+- `AFFSET_NAMESPACE` is validated at startup (lowercase alnum + hyphens, 3–63
+  chars) so `whoami`'s dashboard URL cannot embed arbitrary config junk.
+- HTTP client refuses absolute / protocol-relative paths so a future tool cannot
+  accidentally turn `new URL(path, base)` into cross-origin SSRF.
+- `AFFSET_READ_ONLY` rejects misspelled boolean values instead of silently enabling
+  write tools; base URLs and request timeouts now fail fast on unsafe shapes.
+- Campaign date-only schedules now resolve in the tenant timezone, and impossible
+  calendar dates are rejected instead of rolling into the following month. The
+  update fails closed if the timezone cannot be read rather than assuming UTC;
+  timestamp inputs require an explicit `Z`/UTC offset so host timezone never leaks
+  into scheduling or stats ranges.
+- Source maps are excluded from the published npm tarball.
+- `create_campaign` payout amounts render with `moneyPrecise` (up to five
+  decimals), matching payout-rule tools.
+
+### Added
+
+- Regression coverage for configuration and client hardening, mutation
+  confirmation, read-only tool registration, and tenant-timezone scheduling.
 
 ## [0.1.0]
 
-Initial internal release: `get_stats`, `cut_zones`, campaign / zone / payout /
+Initial public release: `get_stats`, `cut_zones`, campaign / zone / payout /
 targeting / sub-label / team / conversion tools over the affset tenant API.
+
+- `AFFSET_READ_ONLY` environment flag. When set, only read-only tools are
+  registered — every create / update / delete / cut tool is removed from the
+  server, not just gated behind `confirm`.
+- `whoami` tool: reports the tenant the server is bound to.
+- Untrusted-data handling: conversion payloads, subs, and source/click ids are
+  length-capped and escaped before rendering.
+- `AFFSET_BASE_URL` must be `https` for non-loopback hosts.
+- CI (`check-all` on Node 18/20/22) + `npm publish --dry-run`, Dependabot,
+  ESLint, Prettier, MIT license, `SECURITY.md`, `CONTRIBUTING.md`.

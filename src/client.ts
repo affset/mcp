@@ -34,9 +34,26 @@ export class AffsetClient {
    * slightly-off window beats failing the whole call.
    */
   async getTenantTimezone(): Promise<string> {
-    this.tenantTimezone ??= this.get<{ timezone?: string }>("/api/tenant")
-      .then((settings) => settings.timezone?.trim() || "UTC")
-      .catch(() => "UTC");
+    try {
+      return await this.readTenantTimezone();
+    } catch {
+      return "UTC";
+    }
+  }
+
+  /**
+   * Tenant timezone for a write whose meaning depends on local midnight. Unlike
+   * stats reads, silently falling back to UTC here could change a schedule, so
+   * callers get the underlying API error and must stop the mutation.
+   */
+  async getRequiredTenantTimezone(): Promise<string> {
+    return this.readTenantTimezone();
+  }
+
+  private readTenantTimezone(): Promise<string> {
+    this.tenantTimezone ??= this.get<{ timezone?: string }>("/api/tenant").then(
+      (settings) => settings.timezone?.trim() || "UTC",
+    );
     return this.tenantTimezone;
   }
 
@@ -61,7 +78,20 @@ export class AffsetClient {
     path: string,
     opts: { query?: Query; body?: unknown } = {},
   ): Promise<T> {
+    // Defense in depth: every call site today passes a hardcoded `/api/...`
+    // path, but `new URL(path, base)` would quietly redirect to an absolute or
+    // protocol-relative URL if a future tool ever interpolated user input into
+    // `path`. Refuse anything that isn't a same-origin relative path.
+    if (!path.startsWith("/") || path.startsWith("//")) {
+      throw new AffsetApiError(
+        0,
+        `Refusing non-relative API path (must start with a single /): ${path}`,
+      );
+    }
     const url = new URL(path, `${this.config.baseUrl}/`);
+    if (url.origin !== new URL(this.config.baseUrl).origin) {
+      throw new AffsetApiError(0, `Refusing cross-origin API path: ${path}`);
+    }
     for (const [key, value] of Object.entries(opts.query ?? {})) {
       if (value !== undefined) url.searchParams.set(key, String(value));
     }

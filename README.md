@@ -9,32 +9,32 @@ It's a thin wrapper over the existing affset tenant API (`Bearer` token +
 
 ## Tools
 
-| Tool                    | What it does                                                                                                                                                                                                      |
-| ----------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `whoami`                | Show the tenant this server is bound to: namespace, API base, derived dashboard URL, and (when readable) company / timezone / custom API domain. Read-only.                                                       |
-| `get_stats`             | Traffic stats grouped by a dimension (date, campaign, zone, country, sub1–5, …). Returns clicks, conversions, CR, payout, media cost and ROI as a table. Sub columns use the tenant's sub labels when configured. |
-| `list_campaigns`        | List campaigns (status / name filter, pagination).                                                                                                                                                                |
-| `list_zones`            | List traffic-source zones (status / name filter, pagination).                                                                                                                                                     |
-| `list_team`             | List team members (email, role, manager). **Never returns API tokens.**                                                                                                                                           |
-| `create_campaign`       | Create a campaign from a compact spec (offer URL, geo, payout, name). Defaults: CPA / rate 0, **paused**, global payout rule, ready tracking link with `source_click_id={clickid}` + sub placeholders.            |
-| `set_campaign_status`   | **Run** or **pause** a campaign (`action: "run" \| "pause"`). **Dry-run by default**; `confirm: true` to apply. Running can hit the plan's active-campaign limit.                                                 |
-| `update_campaign`       | Partial update (name, offer URL, status, rate, budgets, dates, …). **Dry-run by default**; `confirm: true` to apply. Prefer `set_campaign_status` for run/pause.                                                  |
-| `create_zone`           | Create a traffic-source zone (name + optional postback/site/traffic-back URLs). Always created `active`.                                                                                                          |
-| `update_zone`           | Partial update (name, status, URLs). **Dry-run by default**; `confirm: true` to apply. Pass `null` to clear a URL.                                                                                                |
-| `get_zone_url`          | The `/serve` URL to paste into a network's campaign settings — rotates across the zone's **active** campaigns. Prefilled sub convention, optional `cost` macro. Warns when no active campaigns are visible.       |
-| `get_tracking_link`     | The `/track/click` link for an existing campaign + zone — straight to one active campaign, with no rotation or targeting checks. Re-derives what `create_campaign` echoed on create.                              |
-| `cut_zones`             | Blacklist underperforming zones on a campaign by threshold (CR / spend / ROI). **Dry-run by default**; `confirm: true` to apply.                                                                                  |
-| `list_payout_rules`     | List a campaign's global + per-zone payout rules and its `payout_goal_type`.                                                                                                                                      |
-| `set_payout_rule`       | Upsert a global or zone-specific payout. **Dry-run by default**; `confirm: true` to apply.                                                                                                                        |
-| `delete_payout_rule`    | Delete a global or zone-specific payout rule. **Dry-run by default**; `confirm: true` to apply.                                                                                                                   |
-| `set_payout_goal`       | Set or clear `payout_goal_type` (goal-based conversions). **Dry-run by default**; `confirm: true` to apply.                                                                                                       |
-| `list_targeting_types`  | Catalog of targeting rule types, flagging the seeded ones `/serve` never evaluates.                                                                                                                               |
-| `list_targeting_rules`  | List a campaign's targeting rules, flagging any that have no effect.                                                                                                                                              |
-| `set_targeting_rule`    | Upsert one targeting rule (safe merge), normalised to what `/serve` matches. **Dry-run by default**; `confirm: true` to apply.                                                                                    |
-| `remove_targeting_rule` | Remove one targeting rule by id or type+method. **Dry-run by default**; `confirm: true` to apply.                                                                                                                 |
-| `list_sub_labels`       | List tenant display names for sub1–sub5.                                                                                                                                                                          |
-| `set_sub_labels`        | Set or clear sub labels (partial; `null` clears). **Dry-run by default**; `confirm: true` to apply.                                                                                                               |
-| `list_conversions`      | List conversion audit records (payout, spend, pixel type, payload, postback). Optional client-side filters on the current page.                                                                                   |
+| Tool                    | What it does                                                                                                                                                                                                                                                    |
+| ----------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `whoami`                | Show the tenant this server is bound to: namespace, API base, derived dashboard URL, and (when readable) company / timezone / custom API domain. Read-only.                                                                                                     |
+| `get_stats`             | Traffic stats grouped by a dimension (date, campaign, zone, country, sub1–5, …). Returns clicks, conversions, CR, payout, media cost and ROI as a table. Sub columns use the tenant's sub labels when configured.                                               |
+| `list_campaigns`        | List campaigns (status / name filter, pagination).                                                                                                                                                                                                              |
+| `list_zones`            | List traffic-source zones (status / name filter, pagination).                                                                                                                                                                                                   |
+| `list_team`             | List team members (email, role, manager). **Never returns API tokens.**                                                                                                                                                                                         |
+| `create_campaign`       | Create a campaign from an advertiser email, offer URL, geo, payout and name. Defaults: CPA / rate 0, **paused**, global payout rule, ready tracking link with `source_click_id={clickid}` + sub placeholders. **Dry-run by default**; `confirm: true` to apply. |
+| `set_campaign_status`   | **Run** or **pause** a campaign (`action: "run" \| "pause"`). **Dry-run by default**; `confirm: true` to apply. Running can hit the plan's active-campaign limit.                                                                                               |
+| `update_campaign`       | Partial update (name, offer URL, status, rate, budgets, dates, …). **Dry-run by default**; `confirm: true` to apply. Prefer `set_campaign_status` for run/pause.                                                                                                |
+| `create_zone`           | Create a traffic-source zone (name + optional postback/site/traffic-back URLs). Always created `active`. **Dry-run by default**; `confirm: true` to apply.                                                                                                      |
+| `update_zone`           | Partial update (name, status, URLs). **Dry-run by default**; `confirm: true` to apply. Pass `null` to clear a URL.                                                                                                                                              |
+| `get_zone_url`          | The `/serve` URL to paste into a network's campaign settings — rotates across the zone's **active** campaigns. Prefilled sub convention, optional `cost` macro. Warns when no active campaigns are visible.                                                     |
+| `get_tracking_link`     | The `/track/click` link for an existing campaign + zone — straight to one active campaign, with no rotation or targeting checks. Re-derives what `create_campaign` echoed on create.                                                                            |
+| `cut_zones`             | Blacklist underperforming zones on a campaign by threshold (CR / spend / ROI). **Dry-run by default**; `confirm: true` to apply.                                                                                                                                |
+| `list_payout_rules`     | List a campaign's global + per-zone payout rules and its `payout_goal_type`.                                                                                                                                                                                    |
+| `set_payout_rule`       | Upsert a global or zone-specific payout. **Dry-run by default**; `confirm: true` to apply.                                                                                                                                                                      |
+| `delete_payout_rule`    | Delete a global or zone-specific payout rule. **Dry-run by default**; `confirm: true` to apply.                                                                                                                                                                 |
+| `set_payout_goal`       | Set or clear `payout_goal_type` (goal-based conversions). **Dry-run by default**; `confirm: true` to apply.                                                                                                                                                     |
+| `list_targeting_types`  | Catalog of targeting rule types, flagging the seeded ones `/serve` never evaluates.                                                                                                                                                                             |
+| `list_targeting_rules`  | List a campaign's targeting rules, flagging any that have no effect.                                                                                                                                                                                            |
+| `set_targeting_rule`    | Upsert one targeting rule (safe merge), normalised to what `/serve` matches. **Dry-run by default**; `confirm: true` to apply.                                                                                                                                  |
+| `remove_targeting_rule` | Remove one targeting rule by id or type+method. **Dry-run by default**; `confirm: true` to apply.                                                                                                                                                               |
+| `list_sub_labels`       | List tenant display names for sub1–sub5.                                                                                                                                                                                                                        |
+| `set_sub_labels`        | Set or clear sub labels (partial; `null` clears). **Dry-run by default**; `confirm: true` to apply.                                                                                                                                                             |
+| `list_conversions`      | List conversion audit records (payout, spend, pixel type, payload, postback). Optional client-side filters on the current page.                                                                                                                                 |
 
 ### Which URL do I give the network?
 
@@ -69,11 +69,11 @@ All config comes from environment variables (never hard-coded):
 
 | Variable                    | Description                                                                                                                                                                                                                                                                                         |
 | --------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `AFFSET_BASE_URL`           | Base URL of the affset API, e.g. `https://api.affset.com` (no trailing slash). Must be `https` unless the host is `localhost`/`127.0.0.1`/`::1` — plain http would send the API key in cleartext.                                                                                                   |
+| `AFFSET_BASE_URL`           | Origin of the affset API, e.g. `https://api.affset.com` (no path/query/credentials). Must be `https` unless the host is `localhost`/`127.0.0.1`/`::1` — plain http would send the API key in cleartext.                                                                                             |
 | `AFFSET_API_KEY`            | Tenant API key. Its namespace must match `AFFSET_NAMESPACE`.                                                                                                                                                                                                                                        |
-| `AFFSET_NAMESPACE`          | Tenant namespace.                                                                                                                                                                                                                                                                                   |
+| `AFFSET_NAMESPACE`          | Tenant namespace (lowercase letters, numbers, hyphens; 3–63 chars — same rules as signup).                                                                                                                                                                                                          |
 | `AFFSET_READ_ONLY`          | Optional, default `false`. Set to `true`/`1` to register only the read-only tools (`whoami`, `get_stats`, every `list_*`, `get_zone_url`, `get_tracking_link`) — every create/update/delete/cut tool is unavailable, not just gated behind confirm. See [Security](#security) for why this matters. |
-| `AFFSET_REQUEST_TIMEOUT_MS` | Optional, default `30000`. Per-request HTTP timeout in milliseconds.                                                                                                                                                                                                                                |
+| `AFFSET_REQUEST_TIMEOUT_MS` | Optional, default `30000`. Per-request HTTP timeout in milliseconds (`1000`–`300000`).                                                                                                                                                                                                              |
 
 See [`.env.example`](.env.example).
 
@@ -134,10 +134,10 @@ for `"command": "node"`, `"args": ["/absolute/path/to/affset-mcp/dist/index.js"]
 >
 > **stats for today by sub1** → `get_stats(group_by: "sub1")`
 >
-> **create a RichAds zone with postback** → `create_zone(name: "RichAds", postback_url: "https://…/{source_click_id}")`
+> **create a RichAds zone with postback** → `create_zone(name: "RichAds", postback_url: "https://…/{source_click_id}")` (dry-run) → confirm
 >
-> **create a campaign for offer X, geo BR, payout $2**
-> → `create_campaign(offer_url: "https://offer.example/lp?s={click_id}", geo: ["BR"], payout: 2)`
+> **create a campaign for offer X, advertiser buyer@example.com, geo BR, payout $2**
+> → `create_campaign(user_email: "buyer@example.com", offer_url: "https://offer.example/lp?s={click_id}", geo: ["BR"], payout: 2)` (dry-run) → confirm
 >
 > **what URL do I paste into RichAds?** → `get_zone_url(cost: "{cost}")`
 >
@@ -180,9 +180,10 @@ for `"command": "node"`, `"args": ["/absolute/path/to/affset-mcp/dist/index.js"]
   current page client-side.
 - Date-range presets, `YYYY-MM-DD` bounds and rendered timestamps all resolve in the
   **tenant timezone** (read once from `/api/tenant`), so a window lines up with the
-  date buckets `group_by=date` returns instead of straddling two of them.
-- **Creates** (`create_campaign`, `create_zone`) are additive and echo what was
-  written. **Updates / cuts** stay on dry-run → `confirm: true`.
+  date buckets `group_by=date` returns instead of straddling two of them. Explicit
+  timestamps must include `Z` or a UTC offset.
+- **All mutations** (creates, updates, cuts, deletes) stay on dry-run →
+  `confirm: true`. Creates are additive once confirmed and echo what was written.
 - Activating a campaign or creating a zone can return **402 plan limit** — the
   error surfaces dimension / current / limit.
 - **Payout resolution** at conversion: zone-specific → global → $0. Goal type gates
@@ -232,7 +233,7 @@ npm run dev          # watch mode
 - `AFFSET_BASE_URL` must be `https` unless the host is loopback — no cleartext API key.
 - stdout is the JSON-RPC channel — all logs go to stderr.
 - `list_team` redacts API tokens.
-- Destructive / status-changing mutations follow **show → confirm → apply**.
+- All mutations (including creates) follow **show → confirm → apply**.
 - Create a **dedicated, least-privilege API key** for the MCP rather than reusing an
   owner key, and give it an expiry — affset's RBAC roles (owner/manager/publisher/
   advertiser) apply to MCP tool calls exactly as they do to the dashboard.

@@ -10,6 +10,9 @@
  */
 
 const DATE_ONLY = /^\d{4}-\d{2}-\d{2}$/;
+const ISO_TIMESTAMP =
+  /^(\d{4}-\d{2}-\d{2})T(\d{2}):(\d{2})(?::(\d{2})(?:\.(\d{1,9}))?)?(Z|[+-]\d{2}:\d{2})$/i;
+const MAX_DATE_MS = 8_640_000_000_000_000;
 
 export const RANGE_PRESETS = [
   "today",
@@ -34,6 +37,16 @@ interface CalendarDay {
   y: number;
   m: number;
   d: number;
+}
+
+function parseCalendarDay(value: string): CalendarDay {
+  const [y, month, d] = value.split("-").map(Number);
+  const m = month - 1;
+  const check = new Date(Date.UTC(y, m, d));
+  if (check.getUTCFullYear() !== y || check.getUTCMonth() !== m || check.getUTCDate() !== d) {
+    throw new Error(`Invalid date "${value}". Use a real YYYY-MM-DD calendar date.`);
+  }
+  return { y, m, d };
 }
 
 /**
@@ -112,10 +125,10 @@ function fmtDay(ms: number, timeZone: string): string {
 }
 
 /**
- * Parse an explicit bound: an epoch-ms number/string, a YYYY-MM-DD calendar day,
- * or any Date-parseable timestamp. Date-only strings are read as calendar days
- * in the tenant timezone — matching the presets and the API's date buckets — and
- * for `to` mean end-of-day so a full calendar day is included.
+ * Parse an explicit bound: epoch-ms string, YYYY-MM-DD calendar day, or ISO
+ * timestamp with an explicit offset. Date-only strings are read as calendar
+ * days in the tenant timezone — matching the presets and the API's date buckets
+ * — and for `to` mean end-of-day so a full calendar day is included.
  */
 function parseBound(
   value: string | undefined,
@@ -124,19 +137,71 @@ function parseBound(
 ): number | undefined {
   if (value === undefined) return undefined;
   const trimmed = value.trim();
-  if (/^\d+$/.test(trimmed)) return parseInt(trimmed, 10);
+  if (/^\d+$/.test(trimmed)) return parseEpochMs(Number(trimmed), value);
 
   if (DATE_ONLY.test(trimmed)) {
-    const [y, m, d] = trimmed.split("-").map(Number);
-    const day: CalendarDay = { y: y, m: m - 1, d: d };
+    const day = parseCalendarDay(trimmed);
     return role === "to" ? endOfDayMs(day, timeZone) : startOfDayMs(day, timeZone);
   }
 
-  const parsed = Date.parse(trimmed);
+  return parseIsoTimestamp(trimmed);
+}
+
+function parseEpochMs(value: number, original: string | number): number {
+  if (!Number.isSafeInteger(value) || value <= 0 || value > MAX_DATE_MS) {
+    throw new Error(
+      `Invalid date "${original}". Epoch milliseconds must be a positive safe integer.`,
+    );
+  }
+  return value;
+}
+
+function parseIsoTimestamp(value: string): number {
+  const match = ISO_TIMESTAMP.exec(value);
+  if (!match) {
+    throw new Error(
+      `Invalid date "${value}". Use YYYY-MM-DD, epoch ms, or an ISO timestamp with Z/UTC offset.`,
+    );
+  }
+
+  parseCalendarDay(match[1]);
+  const hour = Number(match[2]);
+  const minute = Number(match[3]);
+  const second = Number(match[4] ?? 0);
+  const offset = match[6];
+  const offsetHour = offset === "Z" || offset === "z" ? 0 : Number(offset.slice(1, 3));
+  const offsetMinute = offset === "Z" || offset === "z" ? 0 : Number(offset.slice(4, 6));
+  if (hour > 23 || minute > 59 || second > 59 || offsetHour > 23 || offsetMinute > 59) {
+    throw new Error(`Invalid date "${value}". Timestamp contains an out-of-range time.`);
+  }
+
+  const parsed = Date.parse(value);
   if (Number.isNaN(parsed)) {
-    throw new Error(`Invalid date "${value}". Use YYYY-MM-DD, an ISO timestamp, or epoch ms.`);
+    throw new Error(`Invalid date "${value}". Use a valid ISO timestamp with Z/UTC offset.`);
   }
   return parsed;
+}
+
+/**
+ * Parse one campaign schedule boundary. Date-only values use the tenant's
+ * timezone; explicit ISO timestamps and epoch milliseconds remain exact.
+ */
+export function parseCampaignDateBound(
+  value: string | number | null,
+  role: "start" | "end",
+  timeZone: string,
+): number | null {
+  if (value === null) return null;
+  if (typeof value === "number") return parseEpochMs(value, value);
+
+  const trimmed = value.trim();
+  if (/^\d+$/.test(trimmed)) return parseEpochMs(Number(trimmed), value);
+  if (DATE_ONLY.test(trimmed)) {
+    const day = parseCalendarDay(trimmed);
+    return role === "end" ? endOfDayMs(day, timeZone) : startOfDayMs(day, timeZone);
+  }
+
+  return parseIsoTimestamp(trimmed);
 }
 
 /**

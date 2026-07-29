@@ -10,7 +10,8 @@ export const CREATE_ZONE_DESCRIPTION =
   "Create a traffic-source zone in the current namespace. Requires a name; optional " +
   "postback_url (where conversions are reported back — include {source_click_id}), " +
   "site_url, traffic_back_url, and user_email (publisher owner). Status is always " +
-  "active on create. Counts against the plan's zone limit (402 if exceeded).";
+  "active on create. Counts against the plan's zone limit (402 if exceeded). " +
+  "DRY-RUN by default; pass confirm=true to apply.";
 
 export const createZoneInputSchema = {
   name: z.string().min(1).max(200).describe("Zone display name (traffic source / placement)."),
@@ -33,6 +34,10 @@ export const createZoneInputSchema = {
     .email()
     .optional()
     .describe("Optional publisher email to own this zone (owner/manager only)."),
+  confirm: z
+    .boolean()
+    .default(false)
+    .describe("false = dry-run preview (default). true = create the zone."),
 };
 
 type CreateZoneArgs = {
@@ -41,6 +46,7 @@ type CreateZoneArgs = {
   site_url?: string;
   traffic_back_url?: string;
   user_email?: string;
+  confirm: boolean;
 };
 
 export async function createZone(
@@ -62,6 +68,36 @@ export async function createZone(
       }
     }
 
+    const postback = args.postback_url;
+    const postbackNote = !postback
+      ? "⚠️ none — set postback_url (with {source_click_id}) or the source will not see conversions"
+      : !postback.includes("{source_click_id}")
+        ? `${mdCell(postback)} — ⚠️ missing \`{source_click_id}\``
+        : mdCell(postback);
+
+    const summaryTable = [
+      "| Field | Value |",
+      "|---|---|",
+      `| Name | ${mdCell(name)} |`,
+      `| Status | active (forced on create) |`,
+      `| Postback | ${postbackNote} |`,
+      `| Site | ${mdCell(args.site_url ?? "—")} |`,
+      `| Traffic back | ${mdCell(args.traffic_back_url ?? "—")} |`,
+      `| Publisher | ${mdCell(args.user_email ?? "—")} |`,
+    ].join("\n");
+
+    if (!args.confirm) {
+      return textResult(
+        [
+          "**Dry run** — would create a zone with:",
+          "",
+          summaryTable,
+          "",
+          "Call again with `confirm: true` to create it. Counts against the plan's zone limit.",
+        ].join("\n"),
+      );
+    }
+
     const body: Record<string, string> = { name };
     if (args.postback_url !== undefined) body.postback_url = args.postback_url;
     if (args.site_url !== undefined) body.site_url = args.site_url;
@@ -78,12 +114,12 @@ export async function createZone(
       // Non-fatal; fall back to the create payload.
     }
 
-    const postback = zone?.postback_url ?? args.postback_url;
-    const postbackNote = !postback
+    const createdPostback = zone?.postback_url ?? args.postback_url;
+    const createdPostbackNote = !createdPostback
       ? "⚠️ none — set postback_url (with {source_click_id}) or the source will not see conversions"
-      : !postback.includes("{source_click_id}")
-        ? `${mdCell(postback)} — ⚠️ missing \`{source_click_id}\``
-        : mdCell(postback);
+      : !createdPostback.includes("{source_click_id}")
+        ? `${mdCell(createdPostback)} — ⚠️ missing \`{source_click_id}\``
+        : mdCell(createdPostback);
 
     return textResult(
       [
@@ -92,7 +128,7 @@ export async function createZone(
         "| Field | Value |",
         "|---|---|",
         `| Status | ${zone?.status ?? created.status} (forced active on create) |`,
-        `| Postback | ${postbackNote} |`,
+        `| Postback | ${createdPostbackNote} |`,
         `| Site | ${mdCell(zone?.site_url ?? args.site_url ?? "—")} |`,
         `| Traffic back | ${mdCell(zone?.traffic_back_url ?? args.traffic_back_url ?? "—")} |`,
         `| Publisher | ${mdCell(zone?.user_email ?? args.user_email ?? "—")} |`,

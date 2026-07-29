@@ -34,8 +34,8 @@ system; report issues there through the same address.
   fields and labels the conversion payload block as untrusted data, but the robust
   control is **`AFFSET_READ_ONLY=true`**, which removes every mutating tool from
   the server entirely. Prefer it for reporting sessions and for any MCP client that
-  auto-approves tool calls. `confirm: true` on mutating tools is a model-level
-  guard, not a security boundary.
+  auto-approves tool calls. `confirm: true` on mutating tools (including creates)
+  is a model-level guard, not a security boundary.
 
 ## Supported versions
 
