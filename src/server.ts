@@ -1,6 +1,7 @@
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { Config } from "./config.js";
 import { AffsetClient } from "./client.js";
+import { DOCS_FEEDS, fetchDocsFeed, type DocsFeed } from "./docs.js";
 import { getStats, getStatsInputSchema, GET_STATS_DESCRIPTION } from "./tools/getStats.js";
 import { cutZones, cutZonesInputSchema, CUT_ZONES_DESCRIPTION } from "./tools/cutZones.js";
 import {
@@ -520,6 +521,42 @@ export function createServer(config: Config): McpServer {
       },
     },
     (args) => listConversions(client, args),
+  );
+
+  // Documentation resources. The affset API reference (the same content as the
+  // /docs page) is exposed so an assistant can answer "how does X work / how do
+  // I call Y" from the docs themselves, not just from the tool schemas above.
+  // Fetched from config.docsBaseUrl at read time, so it always reflects the
+  // currently published docs. Always registered — read-only by nature, so
+  // AFFSET_READ_ONLY doesn't gate them.
+  const registerDocsResource = (name: string, uri: string, description: string, feed: DocsFeed) => {
+    server.registerResource(
+      name,
+      uri,
+      { title: name, description, mimeType: feed.mimeType },
+      async (resourceUri) => ({
+        contents: [
+          {
+            uri: resourceUri.href,
+            mimeType: feed.mimeType,
+            text: await fetchDocsFeed(config, feed),
+          },
+        ],
+      }),
+    );
+  };
+
+  registerDocsResource(
+    "affset-api-reference",
+    "affset://docs/api-reference",
+    "The affset HTTP API reference (endpoints, auth, roles, examples) as Markdown — the same content as the /docs page.",
+    DOCS_FEEDS.markdown,
+  );
+  registerDocsResource(
+    "affset-api-reference-json",
+    "affset://docs/api-reference.json",
+    "The affset HTTP API reference as structured JSON, for programmatic use.",
+    DOCS_FEEDS.json,
   );
 
   return server;

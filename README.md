@@ -64,6 +64,27 @@ URL. Both URL types also require an active zone. Geo whitelist is enforced in `/
 only — the direct tracking link is **not** geo-gated, but it still requires an active,
 currently serviceable campaign.
 
+## Documentation resources
+
+Beyond the tools, the server exposes the affset **API reference** as MCP
+[resources](https://modelcontextprotocol.io/docs/concepts/resources), so an
+assistant can answer "how does conversion tracking work?" or "what does `/serve`
+accept?" from the docs themselves — not just from the tool schemas.
+
+| Resource URI                       | Type               | Content                                                      |
+| ---------------------------------- | ------------------ | ------------------------------------------------------------ |
+| `affset://docs/api-reference`      | `text/markdown`    | The full API reference — endpoints, auth, roles, examples.   |
+| `affset://docs/api-reference.json` | `application/json` | The same reference as structured data, for programmatic use. |
+
+They're the exact content published at [affset.com/docs](https://affset.com/docs),
+generated from one source, and **fetched at read time** from `AFFSET_DOCS_URL`
+(`{origin}/api-reference.md` and `{origin}/api-reference.json`) — so they always
+reflect the currently published docs, not a copy pinned to this package. The
+fetch sends **no credentials** (the docs are public and live on a different
+origin than the tenant API). HTML SPA fallbacks, redirects, invalid JSON, and
+oversized bodies are rejected. Both resources are always available, including
+under `AFFSET_READ_ONLY`.
+
 ## Configuration
 
 All config comes from environment variables (never hard-coded):
@@ -75,6 +96,7 @@ All config comes from environment variables (never hard-coded):
 | `AFFSET_NAMESPACE`          | Tenant namespace (lowercase letters, numbers, hyphens; 3–63 chars — same rules as signup).                                                                                                                                                                                                          |
 | `AFFSET_READ_ONLY`          | Optional, default `false`. Set to `true`/`1` to register only the read-only tools (`whoami`, `get_stats`, every `list_*`, `get_zone_url`, `get_tracking_link`) — every create/update/delete/cut tool is unavailable, not just gated behind confirm. See [Security](#security) for why this matters. |
 | `AFFSET_REQUEST_TIMEOUT_MS` | Optional, default `30000`. Per-request HTTP timeout in milliseconds (`1000`–`300000`).                                                                                                                                                                                                              |
+| `AFFSET_DOCS_URL`           | Optional, default `https://affset.com`. Origin the API-reference [documentation resources](#documentation-resources) are fetched from (origin only, no path). Fetched anonymously — no API key is sent here.                                                                                        |
 
 See [`.env.example`](.env.example).
 

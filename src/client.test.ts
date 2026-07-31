@@ -5,6 +5,7 @@ import type { Config } from "./config.js";
 
 const config: Config = {
   baseUrl: "https://api.affset.com",
+  docsBaseUrl: "https://affset.com",
   apiKey: "sk_test",
   namespace: "acme",
   requestTimeoutMs: 5_000,

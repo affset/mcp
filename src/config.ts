@@ -7,6 +7,14 @@
 export interface Config {
   /** Base URL of the affset API, with any trailing slash stripped. */
   baseUrl: string;
+  /**
+   * Origin the docs feeds (`/api-reference.md`, `/api-reference.json`) are
+   * fetched from for the MCP documentation resources. Defaults to the affset
+   * marketing site; overridable with AFFSET_DOCS_URL. Distinct from `baseUrl`
+   * because the docs live on the public site, not the tenant API host, and are
+   * fetched with no credentials.
+   */
+  docsBaseUrl: string;
   /** Tenant API key sent as `Authorization: Bearer <key>`. */
   apiKey: string;
   /** Tenant namespace sent as `X-Namespace`. */
@@ -19,6 +27,9 @@ export interface Config {
 
 const DEFAULT_TIMEOUT_MS = 30_000;
 const MAX_TIMEOUT_MS = 300_000;
+
+/** Where the docs feeds live when AFFSET_DOCS_URL is not set. */
+const DEFAULT_DOCS_URL = "https://affset.com";
 
 const TRUTHY = new Set(["1", "true", "yes", "on"]);
 const FALSY = new Set(["0", "false", "no", "off"]);
@@ -39,6 +50,42 @@ function isLoopbackHost(hostname: string): boolean {
     hostname === "::1" ||
     hostname.endsWith(".localhost")
   );
+}
+
+/**
+ * Parse an origin-only URL (scheme + host + optional port, no path/query/creds)
+ * and return it, or throw an actionable error naming `varName`. Plain http is
+ * refused for non-loopback hosts. Shared by AFFSET_BASE_URL (sends the API key)
+ * and AFFSET_DOCS_URL (fetched anonymously) so both obey identical rules.
+ */
+function parseOriginUrl(raw: string, varName: string): URL {
+  const normalized = raw.replace(/\/+$/, "");
+  let parsed: URL;
+  try {
+    parsed = new URL(normalized);
+  } catch {
+    throw new Error(`${varName} is not a valid URL: ${raw}`);
+  }
+  if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+    throw new Error(`${varName} must be http(s), got ${parsed.protocol}`);
+  }
+  if (parsed.username || parsed.password) {
+    throw new Error(`${varName} must not contain embedded credentials.`);
+  }
+  if ((parsed.pathname !== "/" && parsed.pathname !== "") || parsed.search || parsed.hash) {
+    throw new Error(
+      `${varName} must be an origin only (scheme, host, and optional port; no path, query, or fragment).`,
+    );
+  }
+  if (parsed.protocol === "http:" && !isLoopbackHost(parsed.hostname)) {
+    // AFFSET_BASE_URL carries the Bearer API key — spell out why http is refused.
+    const cleartextHint =
+      varName === "AFFSET_BASE_URL" ? " — plain http would send the API key in cleartext" : "";
+    throw new Error(
+      `${varName} must be https for a non-local host (got http://${parsed.hostname})${cleartextHint}.`,
+    );
+  }
+  return parsed;
 }
 
 function namespaceError(namespace: string): string | null {
@@ -78,32 +125,13 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
   const nsErr = namespaceError(namespace!);
   if (nsErr) throw new Error(nsErr);
 
-  const normalized = baseUrl!.replace(/\/+$/, "");
-  let parsed: URL;
-  try {
-    parsed = new URL(normalized);
-  } catch {
-    throw new Error(`AFFSET_BASE_URL is not a valid URL: ${baseUrl}`);
-  }
-  if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
-    throw new Error(`AFFSET_BASE_URL must be http(s), got ${parsed.protocol}`);
-  }
-  if (parsed.username || parsed.password) {
-    throw new Error("AFFSET_BASE_URL must not contain embedded credentials.");
-  }
-  if ((parsed.pathname !== "/" && parsed.pathname !== "") || parsed.search || parsed.hash) {
-    throw new Error(
-      "AFFSET_BASE_URL must be an origin only (scheme, host, and optional port; no path, query, or fragment).",
-    );
-  }
-  // Plain http sends the Bearer API key in cleartext. Only loopback (local dev /
-  // wrangler dev) is exempt — anything else must be https.
-  if (parsed.protocol === "http:" && !isLoopbackHost(parsed.hostname)) {
-    throw new Error(
-      `AFFSET_BASE_URL must be https for a non-local host (got http://${parsed.hostname}) — ` +
-        `plain http would send the API key in cleartext.`,
-    );
-  }
+  // Plain http on AFFSET_BASE_URL sends the Bearer API key in cleartext; the
+  // helper refuses it for non-loopback hosts.
+  const parsed = parseOriginUrl(baseUrl!, "AFFSET_BASE_URL");
+
+  // Optional — the docs feeds are public, so this only sets where to fetch them.
+  const docsRaw = env.AFFSET_DOCS_URL?.trim();
+  const docsBaseUrl = parseOriginUrl(docsRaw || DEFAULT_DOCS_URL, "AFFSET_DOCS_URL").origin;
 
   const timeoutRaw = env.AFFSET_REQUEST_TIMEOUT_MS?.trim();
   let requestTimeoutMs = DEFAULT_TIMEOUT_MS;
@@ -130,6 +158,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
 
   return {
     baseUrl: parsed.origin,
+    docsBaseUrl,
     apiKey: apiKey!,
     namespace: namespace!,
     requestTimeoutMs,

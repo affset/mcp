@@ -7,6 +7,7 @@ import { createCampaign } from "./createCampaign.js";
 
 const CONFIG: Config = {
   baseUrl: "https://api.affset.com",
+  docsBaseUrl: "https://affset.com",
   apiKey: "test-key",
   namespace: "test",
   requestTimeoutMs: 1_000,

@@ -31,7 +31,7 @@ describe("loadConfig", () => {
   it("rejects cleartext http to a non-local host", () => {
     assert.throws(
       () => loadConfig({ ...BASE, AFFSET_BASE_URL: "http://api.affset.com" }),
-      /must be https/,
+      /must be https.*API key in cleartext/,
     );
   });
 
@@ -47,6 +47,33 @@ describe("loadConfig", () => {
     assert.throws(
       () => loadConfig({ ...BASE, AFFSET_BASE_URL: "https://api.affset.com?tenant=acme" }),
       /origin only/,
+    );
+  });
+
+  it("defaults the docs URL to the marketing site", () => {
+    assert.equal(loadConfig(BASE).docsBaseUrl, "https://affset.com");
+  });
+
+  it("accepts an AFFSET_DOCS_URL override and normalizes to origin", () => {
+    const cfg = loadConfig({ ...BASE, AFFSET_DOCS_URL: "https://docs.staging.affset.com/" });
+    assert.equal(cfg.docsBaseUrl, "https://docs.staging.affset.com");
+  });
+
+  it("allows http docs URLs only on loopback", () => {
+    assert.equal(
+      loadConfig({ ...BASE, AFFSET_DOCS_URL: "http://localhost:8788" }).docsBaseUrl,
+      "http://localhost:8788",
+    );
+    assert.throws(
+      () => loadConfig({ ...BASE, AFFSET_DOCS_URL: "http://affset.com" }),
+      /AFFSET_DOCS_URL must be https/,
+    );
+  });
+
+  it("rejects docs URLs that are not bare origins", () => {
+    assert.throws(
+      () => loadConfig({ ...BASE, AFFSET_DOCS_URL: "https://affset.com/docs" }),
+      /AFFSET_DOCS_URL must be an origin only/,
     );
   });
 
