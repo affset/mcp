@@ -14,6 +14,11 @@ import {
   listCampaignsInputSchema,
   LIST_CAMPAIGNS_DESCRIPTION,
 } from "./tools/listCampaigns.js";
+import {
+  getCampaign,
+  getCampaignInputSchema,
+  GET_CAMPAIGN_DESCRIPTION,
+} from "./tools/getCampaign.js";
 import { listZones, listZonesInputSchema, LIST_ZONES_DESCRIPTION } from "./tools/listZones.js";
 import { listTeam, listTeamInputSchema, LIST_TEAM_DESCRIPTION } from "./tools/listTeam.js";
 import {
@@ -169,6 +174,22 @@ export function createServer(config: Config): McpServer {
       },
     },
     (args) => listCampaigns(client, args),
+  );
+
+  registerTool(
+    "get_campaign",
+    {
+      title: "Get a campaign's full record",
+      description: GET_CAMPAIGN_DESCRIPTION,
+      inputSchema: getCampaignInputSchema,
+      annotations: {
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: true,
+      },
+    },
+    (args) => getCampaign(client, args),
   );
 
   registerTool(

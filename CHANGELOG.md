@@ -6,6 +6,15 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+
+- `get_campaign` — one campaign's full record (every field, including the
+  untruncated offer URL, exact schedule, budgets/pacing, silent-conversions
+  flag, and payout goal type) plus its targeting rules and payout rules, in a
+  single call. `list_campaigns` stays a scannable summary (offer URL
+  truncated, no dates/pacing/silent); use `get_campaign` when you need one
+  campaign's complete data, e.g. before recreating it as a new campaign.
+
 ## [0.1.1]
 
 ### Changed

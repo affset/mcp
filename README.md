@@ -14,6 +14,7 @@ It's a thin wrapper over the existing affset tenant API (`Bearer` token +
 | `whoami`                | Show the tenant this server is bound to: namespace, API base, derived dashboard URL, and (when readable) company / timezone / custom API domain. Read-only.                                                                                                                                           |
 | `get_stats`             | Traffic stats grouped by a dimension (date, campaign, zone, country, sub1–5, …). Returns clicks, conversions, CR, payout, media cost and ROI as a table. Sub columns use the tenant's sub labels when configured.                                                                                     |
 | `list_campaigns`        | List campaigns (status / name filter, pagination).                                                                                                                                                                                                                                                    |
+| `get_campaign`          | One campaign's full record — every field (untruncated offer URL, exact schedule, budgets/pacing, silent flag, payout goal type) plus its targeting rules and payout rules, in one call.                                                                                                               |
 | `list_zones`            | List traffic-source zones (status / name filter, pagination).                                                                                                                                                                                                                                         |
 | `list_team`             | List team members (email, role, manager). **Never returns API tokens.**                                                                                                                                                                                                                               |
 | `create_team_member`    | Invite a team member (owner, manager, publisher, advertiser, publisher_manager, advertiser_manager). A scoped manager key can only create its own managed role, self-assigned. Returns the new API key **once** — `list_team` never shows it again. **Dry-run by default**; `confirm: true` to apply. |
@@ -185,6 +186,8 @@ for `"command": "node"`, `"args": ["/absolute/path/to/affset-mcp/dist/index.js"]
 ## Usage examples
 
 > **list paused campaigns** → `list_campaigns(status: "paused")`
+>
+> **show me everything about campaign 42** → `get_campaign(campaign_id: 42)`
 >
 > **show zones** → `list_zones()`
 >

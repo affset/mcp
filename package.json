@@ -1,6 +1,6 @@
 {
   "name": "@affset/mcp",
-  "version": "0.1.1",
+  "version": "0.1.3",
   "mcpName": "io.github.affset/mcp",
   "description": "MCP server for the affset ad platform — stats, campaigns, zones, payouts, targeting, sub labels, and team from your chat client.",
   "type": "module",

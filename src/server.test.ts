@@ -113,6 +113,7 @@ describe("server tool registration", () => {
 
     assert.ok(names.has("whoami"));
     assert.ok(names.has("get_stats"));
+    assert.ok(names.has("get_campaign"));
     assert.ok(names.has("list_conversions"));
     assert.ok(names.has("list_team"));
     assert.equal(names.has("create_campaign"), false);
