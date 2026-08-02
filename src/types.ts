@@ -167,9 +167,6 @@ export interface PayoutRulesResponse {
   payout_rules: PayoutRule[];
 }
 
-/** @deprecated Prefer PayoutRule — kept as an alias for create responses. */
-export type PayoutRuleResponse = PayoutRule;
-
 /**
  * One team member from GET /api/api-keys?type=user, or the response of
  * POST /api/api-keys?type=user (create).
