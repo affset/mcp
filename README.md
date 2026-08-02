@@ -236,7 +236,9 @@ for `"command": "node"`, `"args": ["/absolute/path/to/affset-mcp/dist/index.js"]
 ## Notes & limits
 
 - **`get_stats` groups by one dimension per call.** Drill-down is a sequence of
-  calls, each narrowing with `campaign_ids` / `zone_ids` / `sub1..sub5` filters.
+  calls, each narrowing with `campaign_ids` / `zone_ids` / `sub1..sub5` /
+  `conversion_type` filters. Filtering by `conversion_type` returns conversion
+  rows only (impressions, clicks and media cost are zero).
 - **`spend` means `media_cost`** (your traffic cost). ROI / spend thresholds need
   cost data imported for the slice.
 - List endpoints have **no server-side name search** — `name_contains` filters the

@@ -8,6 +8,9 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- `get_stats` accepts a `conversion_type` filter (comma-separated; `""` for
+  untyped). Matches conversion rows only, so impressions/clicks/media cost
+  are zero — documented in the tool description so agents don't misread CR.
 - `get_campaign` — one campaign's full record (every field, including the
   untruncated offer URL, exact schedule, budgets/pacing, silent-conversions
   flag, and payout goal type) plus its targeting rules and payout rules, in a

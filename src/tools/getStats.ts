@@ -10,9 +10,11 @@ export const GET_STATS_DESCRIPTION =
   "Pull affset traffic stats grouped by a single dimension. Returns impressions, clicks, " +
   "conversions, CR, payout, media cost and ROI as a table. Drill down by calling " +
   "repeatedly: first group_by=date or campaign_id, then narrow with filters " +
-  "(campaign_ids, zone_ids, sub1..sub5) and change group_by (zone_id, sub1, ...). " +
+  "(campaign_ids, zone_ids, sub1..sub5, conversion_type) and change group_by (zone_id, sub1, ...). " +
   'Sub columns are titled with the tenant\'s configured labels (e.g. "Zone (sub1)") ' +
   "when set; group_by/filters always take the raw subN key. " +
+  "conversion_type only matches conversion rows, so filtering by it zeroes impressions, clicks " +
+  "and media cost — it narrows to conversions of that type, not clicks that led to one. " +
   "ROI is blank until traffic cost has been imported for the slice.";
 
 export const getStatsInputSchema = {
@@ -43,6 +45,13 @@ export const getStatsInputSchema = {
   sub3: z.string().optional().describe("Filter by sub3 value(s)."),
   sub4: z.string().optional().describe("Filter by sub4 value(s)."),
   sub5: z.string().optional().describe("Filter by sub5 value(s)."),
+  conversion_type: z
+    .string()
+    .optional()
+    .describe(
+      "Filter by conversion type value(s) (e.g. deposit, register), comma-separated for multiple. " +
+        'Pass "" to select conversions recorded without a type.',
+    ),
 };
 
 type GetStatsArgs = {
@@ -57,6 +66,7 @@ type GetStatsArgs = {
   sub3?: string;
   sub4?: string;
   sub5?: string;
+  conversion_type?: string;
 };
 
 export async function getStats(client: AffsetClient, args: GetStatsArgs): Promise<CallToolResult> {
@@ -75,6 +85,7 @@ export async function getStats(client: AffsetClient, args: GetStatsArgs): Promis
       const value = args[key];
       if (value !== undefined) query[key] = value;
     }
+    if (args.conversion_type !== undefined) query.conversion_type = args.conversion_type;
 
     const data = await client.get<StatsResponse>("/api/stats", query);
     const table = formatStatsTable(data.stats ?? [], args.group_by, data.sub_labels);
