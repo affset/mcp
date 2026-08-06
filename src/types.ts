@@ -11,6 +11,7 @@ export interface StatRow {
   country?: string | null;
   conversion_type?: string | null;
   publisher_email?: string | null;
+  advertiser_email?: string | null;
   sub1?: string | null;
   sub2?: string | null;
   sub3?: string | null;
@@ -231,6 +232,7 @@ export const GROUP_BY_VALUES = [
   "country",
   "conversion_type",
   "publisher_email",
+  "advertiser_email",
   ...SUB_KEYS,
 ] as const;
 export type GroupBy = (typeof GROUP_BY_VALUES)[number];

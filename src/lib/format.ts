@@ -82,6 +82,8 @@ export function rowLabel(row: StatRow, groupBy: GroupBy): string {
       return capUntrusted(row.conversion_type || "(none)");
     case "publisher_email":
       return row.publisher_email || "(none)";
+    case "advertiser_email":
+      return row.advertiser_email || "(none)";
     default:
       // sub1..sub5 — attributed from click/pixel query params, same trust level.
       return capUntrusted(row[groupBy] || "(none)");
@@ -95,6 +97,7 @@ const HEADER_BY_GROUP: Record<GroupBy, string> = {
   country: "Country",
   conversion_type: "Conv. type",
   publisher_email: "Publisher",
+  advertiser_email: "Advertiser",
   sub1: "sub1",
   sub2: "sub2",
   sub3: "sub3",

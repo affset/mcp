@@ -10,12 +10,18 @@ export const GET_STATS_DESCRIPTION =
   "Pull affset traffic stats grouped by a single dimension. Returns impressions, clicks, " +
   "conversions, CR, payout, media cost and ROI as a table. Drill down by calling " +
   "repeatedly: first group_by=date or campaign_id, then narrow with filters " +
-  "(campaign_ids, zone_ids, sub1..sub5, conversion_type) and change group_by (zone_id, sub1, ...). " +
+  "(campaign_ids, zone_ids, sub1..sub5, conversion_type, advertiser_email, publisher_email) " +
+  "and change group_by (zone_id, sub1, ...). " +
   'Sub columns are titled with the tenant\'s configured labels (e.g. "Zone (sub1)") ' +
   "when set; group_by/filters always take the raw subN key. " +
   "conversion_type only matches conversion rows, so filtering by it zeroes impressions, clicks " +
   "and media cost — it narrows to conversions of that type, not clicks that led to one. " +
-  "ROI is blank until traffic cost has been imported for the slice.";
+  "ROI is blank until traffic cost has been imported for the slice. " +
+  "group_by=advertiser_email / publisher_email break down by team member; the API limits them " +
+  "to owner/manager plus the matching side's manager role (403 otherwise). " +
+  "advertiser_email / publisher_email are also standalone filters — narrow every row to one " +
+  "advertiser's campaigns or one publisher's zones regardless of group_by, instead of breaking " +
+  "every user out into its own row. Same role limits as the matching group_by value.";
 
 export const getStatsInputSchema = {
   group_by: z
@@ -52,6 +58,24 @@ export const getStatsInputSchema = {
       "Filter by conversion type value(s) (e.g. deposit, register), comma-separated for multiple. " +
         'Pass "" to select conversions recorded without a type.',
     ),
+  advertiser_email: z
+    .string()
+    .trim()
+    .email()
+    .optional()
+    .describe(
+      "Narrow to one advertiser's campaigns, independent of group_by. Owner/manager: any advertiser. " +
+        "advertiser_manager: only one of their own assigned advertisers (else 403). Other roles: 403.",
+    ),
+  publisher_email: z
+    .string()
+    .trim()
+    .email()
+    .optional()
+    .describe(
+      "Narrow to one publisher's zones, independent of group_by. Owner/manager: any publisher. " +
+        "publisher_manager: only one of their own assigned publishers (else 403). Other roles: 403.",
+    ),
 };
 
 type GetStatsArgs = {
@@ -67,6 +91,8 @@ type GetStatsArgs = {
   sub4?: string;
   sub5?: string;
   conversion_type?: string;
+  advertiser_email?: string;
+  publisher_email?: string;
 };
 
 export async function getStats(client: AffsetClient, args: GetStatsArgs): Promise<CallToolResult> {
@@ -86,6 +112,12 @@ export async function getStats(client: AffsetClient, args: GetStatsArgs): Promis
       if (value !== undefined) query[key] = value;
     }
     if (args.conversion_type !== undefined) query.conversion_type = args.conversion_type;
+    if (args.advertiser_email !== undefined) {
+      query.advertiser_email = args.advertiser_email.trim();
+    }
+    if (args.publisher_email !== undefined) {
+      query.publisher_email = args.publisher_email.trim();
+    }
 
     const data = await client.get<StatsResponse>("/api/stats", query);
     const table = formatStatsTable(data.stats ?? [], args.group_by, data.sub_labels);
