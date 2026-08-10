@@ -23,7 +23,8 @@ system; report issues there through the same address.
   (enforced for non-loopback hosts) so the bearer token is never sent in
   cleartext.
 - **Use a dedicated, least-privilege, expiring API key.** affset's RBAC roles
-  (owner / manager / publisher / advertiser) apply to MCP tool calls exactly as
+  (owner / manager / publisher / advertiser / advertiser_manager /
+  publisher_manager) apply to MCP tool calls exactly as
   they do in the dashboard. Do not hand the server an owner key if a scoped key
   will do.
 - **Some tool output is attacker-influenced.** `get_stats`, `list_conversions`,
