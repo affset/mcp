@@ -6,17 +6,44 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.1.4]
+
 ### Added
 
 - `get_stats` accepts a `conversion_type` filter (comma-separated; `""` for
   untyped). Matches conversion rows only, so impressions/clicks/media cost
   are zero — documented in the tool description so agents don't misread CR.
+- `get_stats` can `group_by` `advertiser_email` / `publisher_email`, and also
+  filter by those emails independently of `group_by` (same role limits as the
+  API: owner/manager plus the matching scoped manager).
+
+### Fixed
+
+- `SECURITY.md` trust-model note lists all six RBAC roles (adds
+  `advertiser_manager` / `publisher_manager`).
+
+### Changed
+
+- Drop unused `PayoutRuleResponse` type alias.
+
+## [0.1.3]
+
+### Added
+
 - `get_campaign` — one campaign's full record (every field, including the
   untruncated offer URL, exact schedule, budgets/pacing, silent-conversions
   flag, and payout goal type) plus its targeting rules and payout rules, in a
   single call. `list_campaigns` stays a scannable summary (offer URL
   truncated, no dates/pacing/silent); use `get_campaign` when you need one
   campaign's complete data, e.g. before recreating it as a new campaign.
+
+## [0.1.2]
+
+### Added
+
+- Remote API-reference MCP resources (`affset://docs/api-reference` and related)
+  so clients can pull the live docs without leaving chat.
+- `glama.json` to claim MCP server maintainership on Glama.
 
 ## [0.1.1]
 
