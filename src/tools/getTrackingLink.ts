@@ -1,7 +1,7 @@
 import { z } from "zod";
 import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import { AffsetApiError, type AffsetClient } from "../client.js";
-import type { Config } from "../config.js";
+import type { Config } from "../runtimeConfig.js";
 import { mdCell } from "../lib/format.js";
 import { buildTrackingLink, fetchTenantIntegration, subLegend } from "../lib/integrationUrls.js";
 import { collectSubs, linkInputSchema, type LinkArgs } from "../lib/linkArgs.js";

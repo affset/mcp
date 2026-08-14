@@ -77,6 +77,13 @@ describe("loadConfig", () => {
     );
   });
 
+  it("rejects API keys that contain line breaks", () => {
+    assert.throws(
+      () => loadConfig({ ...BASE, AFFSET_API_KEY: "sk_test\ninjected" }),
+      /AFFSET_API_KEY must not contain line breaks/,
+    );
+  });
+
   it("rejects missing required env vars with a combined message", () => {
     assert.throws(() => loadConfig({}), /AFFSET_BASE_URL, AFFSET_API_KEY, AFFSET_NAMESPACE/);
   });

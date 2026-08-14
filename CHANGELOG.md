@@ -6,6 +6,49 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.2.0]
+
+### Added
+
+- The package is now importable as a runtime-agnostic library:
+  `@affset/mcp/core` (also the root export) exposes `registerAffsetTools`,
+  `AffsetClient`, `Config`, the docs-feed helpers, and `VERSION`, with
+  TypeScript declarations. `registerAffsetTools(server, config)` registers the
+  complete tool roster + docs resources and applies read-only stripping — the
+  single source of truth shared by the stdio server and the hosted affset MCP
+  gateway (`mcp.affset.com`), so the two transports cannot drift.
+- Golden roster tests pin the exact tool lists (full and read-only); the
+  gateway asserts the same lists over live `tools/list`.
+- An optional metadata-only `onToolCall` hook lets hosted transports emit
+  audit events without exposing tool arguments or output.
+- Runtime config supplied through the library API is validated and normalized
+  before tools are registered, including HTTPS enforcement for bearer-key API
+  origins and fail-closed validation of the read-only flag.
+- Tenant API and documentation responses are streamed under hard byte limits;
+  oversized upstream bodies are cancelled before they can exhaust a hosted
+  Worker or flood model context.
+
+### Changed
+
+- The stdio entrypoint is unchanged in behavior (env config, dry-run defaults,
+  `AFFSET_READ_ONLY`) — it now delegates registration to the shared helper.
+- The supported Node.js floor is now 22.13; CI covers Node 22 and 24 instead of
+  end-of-life Node 18/20 releases that the current toolchain no longer supports.
+- `server.ts` no longer reads `package.json` via `node:module`'s
+  `createRequire` (Workers-incompatible); the version is a checked constant.
+- The public declaration graph no longer references `NodeJS.ProcessEnv`, so
+  Worker and browser-oriented TypeScript consumers do not need `@types/node`.
+- Production transitive dependencies were refreshed to patched releases; the
+  production dependency audit is clean.
+- Read-only mode never registers mutating tools (previously registered then
+  immediately removed), so the boundary does not depend on the SDK unlisting
+  them after the fact.
+
+### Fixed
+
+- Cancelling an oversized streamed response cannot mask the size-limit error
+  behind a follow-up `releaseLock()` throw.
+
 ## [0.1.4]
 
 ### Added

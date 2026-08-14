@@ -1,6 +1,6 @@
 import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import type { AffsetClient } from "../client.js";
-import type { Config } from "../config.js";
+import type { Config } from "../runtimeConfig.js";
 import { mdCell } from "../lib/format.js";
 import { textResult } from "../lib/toolResult.js";
 import type { TenantSettingsResponse } from "../types.js";

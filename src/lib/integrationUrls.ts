@@ -12,7 +12,7 @@
  */
 
 import type { AffsetClient } from "../client.js";
-import type { Config } from "../config.js";
+import type { Config } from "../runtimeConfig.js";
 import { SUB_KEYS, type SubKey, type SubLabels, type TenantSettingsResponse } from "../types.js";
 import { mdCell } from "./format.js";
 

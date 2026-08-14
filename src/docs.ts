@@ -1,4 +1,5 @@
-import type { Config } from "./config.js";
+import { readResponseText, ResponseTooLargeError } from "./lib/readBody.js";
+import { normalizeRuntimeConfig, type Config } from "./runtimeConfig.js";
 
 /**
  * Fetches the affset documentation feeds that back the MCP documentation
@@ -35,45 +36,19 @@ export class DocsFetchError extends Error {
   }
 }
 
-/**
- * Read a response body, aborting once it exceeds `maxBytes`. Prefers
- * Content-Length when present so oversized bodies never enter memory.
- */
-async function readBodyWithLimit(res: Response, maxBytes: number, url: string): Promise<string> {
-  const contentLength = res.headers.get("content-length");
-  if (contentLength !== null) {
-    const declared = Number(contentLength);
-    if (Number.isFinite(declared) && declared > maxBytes) {
+async function readDocsBody(res: Response, url: string): Promise<string> {
+  try {
+    return await readResponseText(res, MAX_DOCS_BYTES);
+  } catch (err) {
+    if (err instanceof ResponseTooLargeError) {
       throw new DocsFetchError(
-        `Docs response from ${url} declares Content-Length ${declared}, over the ${maxBytes}-byte limit.`,
+        err.kind === "declared"
+          ? `Docs response from ${url} declares Content-Length ${err.size}, over the ${MAX_DOCS_BYTES}-byte limit.`
+          : `Docs response from ${url} exceeded the ${MAX_DOCS_BYTES}-byte limit while streaming.`,
       );
     }
+    throw err;
   }
-
-  if (!res.body) {
-    return "";
-  }
-
-  const reader = res.body.getReader();
-  const chunks: Uint8Array[] = [];
-  let total = 0;
-  try {
-    for (;;) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      total += value.byteLength;
-      if (total > maxBytes) {
-        throw new DocsFetchError(
-          `Docs response from ${url} exceeded the ${maxBytes}-byte limit while streaming.`,
-        );
-      }
-      chunks.push(value);
-    }
-  } finally {
-    reader.releaseLock();
-  }
-
-  return Buffer.concat(chunks).toString("utf8");
 }
 
 /** SPA catch-alls often return 200 HTML for missing static feeds — refuse those. */
@@ -131,7 +106,8 @@ function validateFeedBody(text: string, feed: DocsFeed, url: string): void {
  * caller as the resource read failure.
  */
 export async function fetchDocsFeed(config: Config, feed: DocsFeed): Promise<string> {
-  const url = `${config.docsBaseUrl}/${feed.file}`;
+  const runtimeConfig = normalizeRuntimeConfig(config);
+  const url = `${runtimeConfig.docsBaseUrl}/${feed.file}`;
 
   let res: Response;
   try {
@@ -143,12 +119,12 @@ export async function fetchDocsFeed(config: Config, feed: DocsFeed): Promise<str
       // Don't follow redirects to a different host — a misconfigured docs
       // origin shouldn't silently pull content from elsewhere.
       redirect: "manual",
-      signal: AbortSignal.timeout(config.requestTimeoutMs),
+      signal: AbortSignal.timeout(runtimeConfig.requestTimeoutMs),
     });
   } catch (err) {
     if (err instanceof Error && err.name === "TimeoutError") {
       throw new DocsFetchError(
-        `Timed out after ${config.requestTimeoutMs}ms fetching docs from ${url}`,
+        `Timed out after ${runtimeConfig.requestTimeoutMs}ms fetching docs from ${url}`,
       );
     }
     throw new DocsFetchError(
@@ -168,7 +144,7 @@ export async function fetchDocsFeed(config: Config, feed: DocsFeed): Promise<str
     throw new DocsFetchError(`Docs fetch for ${url} returned HTTP ${res.status}.`);
   }
 
-  const text = await readBodyWithLimit(res, MAX_DOCS_BYTES, url);
+  const text = await readDocsBody(res, url);
   assertNotHtmlShell(text, res.headers.get("content-type"), url);
   validateFeedBody(text, feed, url);
   return text;

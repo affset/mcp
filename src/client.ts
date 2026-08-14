@@ -1,4 +1,5 @@
-import type { Config } from "./config.js";
+import { readResponseText, ResponseTooLargeError } from "./lib/readBody.js";
+import { normalizeRuntimeConfig, type Config } from "./runtimeConfig.js";
 
 /** Thrown when the affset API returns a non-2xx response. */
 export class AffsetApiError extends Error {
@@ -15,12 +16,19 @@ export class AffsetApiError extends Error {
 
 type Query = Record<string, string | number | undefined>;
 
+/** Bound upstream memory use before JSON parsing or rendering into model context. */
+const MAX_API_RESPONSE_BYTES = 5_000_000;
+
 /**
  * Thin typed HTTP client over the affset tenant API. Injects the Bearer token
  * and `X-Namespace` header on every request and normalises error handling.
  */
 export class AffsetClient {
-  constructor(private readonly config: Config) {}
+  private readonly config: Config;
+
+  constructor(config: Config) {
+    this.config = normalizeRuntimeConfig(config);
+  }
 
   /** Resolved once per process; the tenant timezone changes about never. */
   private tenantTimezone?: Promise<string>;
@@ -124,7 +132,18 @@ export class AffsetClient {
       );
     }
 
-    const text = await res.text();
+    let text: string;
+    try {
+      text = await readResponseText(res, MAX_API_RESPONSE_BYTES);
+    } catch (err) {
+      if (err instanceof ResponseTooLargeError) {
+        throw new AffsetApiError(
+          res.ok ? 0 : res.status,
+          `Response too large calling ${method} ${path}: ${err.message}.`,
+        );
+      }
+      throw err;
+    }
     let data: unknown = null;
     if (text) {
       try {

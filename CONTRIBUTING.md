@@ -15,7 +15,7 @@ npm run check-all    # lint + format:check + type-check + test — run before op
 npm run dev          # watch mode
 ```
 
-Requires Node 18+.
+Requires Node 22.13+.
 
 ## Conventions
 
@@ -23,8 +23,11 @@ Requires Node 18+.
   existing `tsconfig.json`.
 - **One tool per file** under `src/tools/`. A tool module exports its handler, its
   Zod `inputSchema`, and an uppercase `*_DESCRIPTION` string. Register it in
-  `src/server.ts` with the right `annotations` — in particular, `readOnlyHint: true`
-  is what keeps a tool available under `AFFSET_READ_ONLY`, so set it honestly.
+  `src/registerTools.ts` with the right `annotations` — in particular,
+  `readOnlyHint: true` is what keeps a tool available under `AFFSET_READ_ONLY`,
+  so set it honestly. Add the name to the golden rosters in
+  `src/registerTools.test.ts` (`FULL_ROSTER`, and `READ_ONLY_ROSTER` when the
+  tool is read-only).
 - **Mutations follow show → confirm → apply.** Anything that writes defaults to a
   dry run and only applies with `confirm: true`.
 - **stdout is the JSON-RPC channel.** All diagnostics go to `stderr` — never

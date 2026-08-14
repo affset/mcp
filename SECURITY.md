@@ -10,18 +10,22 @@ any public disclosure. Coordinated disclosure is appreciated.
 
 ## Scope
 
-This repository is the affset MCP server — a thin, stdio-based client over the
-affset tenant API. In scope: credential handling, the read-only enforcement of
-`AFFSET_READ_ONLY`, input validation, and the handling of untrusted data that
-reaches the model's context (see below). The affset API itself is a separate
-system; report issues there through the same address.
+This repository is the affset MCP server — a thin client over the affset tenant
+API, published as a stdio binary and as a runtime-agnostic library
+(`@affset/mcp/core`) used by hosted transports. In scope: credential handling,
+the read-only enforcement of `AFFSET_READ_ONLY` / `config.readOnly`, input
+validation, and the handling of untrusted data that reaches the model's context
+(see below). The affset API itself is a separate system; report issues there
+through the same address.
 
 ## Trust model — read this before deploying
 
-- **Credentials come from the environment only.** `AFFSET_API_KEY` is never read
-  from, written to, or logged by this server. Point it at an `https` origin
-  (enforced for non-loopback hosts) so the bearer token is never sent in
-  cleartext.
+- **Credentials come from the environment (stdio) or the caller (library).**
+  `AFFSET_API_KEY` / `config.apiKey` is never read from disk, written, or logged
+  by this server. Point it at an `https` origin (enforced for non-loopback hosts)
+  so the bearer token is never sent in cleartext. Library consumers pass the same
+  validated `Config` shape; malformed values fail closed before any tool is
+  registered.
 - **Use a dedicated, least-privilege, expiring API key.** affset's RBAC roles
   (owner / manager / publisher / advertiser / advertiser_manager /
   publisher_manager) apply to MCP tool calls exactly as

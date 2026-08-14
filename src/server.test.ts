@@ -107,7 +107,7 @@ describe("server documentation resources", () => {
 });
 
 describe("server tool registration", () => {
-  it("removes mutation tools in read-only mode", async () => {
+  it("does not register mutation tools in read-only mode", async () => {
     const tools = await listedTools(true);
     const names = new Set(tools.map((tool) => tool.name));
 

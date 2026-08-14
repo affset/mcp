@@ -90,18 +90,20 @@ under `AFFSET_READ_ONLY`.
 
 All config comes from environment variables (never hard-coded):
 
-| Variable                    | Description                                                                                                                                                                                                                                                                                         |
-| --------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `AFFSET_BASE_URL`           | Origin of the affset API, e.g. `https://api.affset.com` (no path/query/credentials). Must be `https` unless the host is `localhost`/`127.0.0.1`/`::1` — plain http would send the API key in cleartext.                                                                                             |
-| `AFFSET_API_KEY`            | Tenant API key. Its namespace must match `AFFSET_NAMESPACE`.                                                                                                                                                                                                                                        |
-| `AFFSET_NAMESPACE`          | Tenant namespace (lowercase letters, numbers, hyphens; 3–63 chars — same rules as signup).                                                                                                                                                                                                          |
-| `AFFSET_READ_ONLY`          | Optional, default `false`. Set to `true`/`1` to register only the read-only tools (`whoami`, `get_stats`, every `list_*`, `get_zone_url`, `get_tracking_link`) — every create/update/delete/cut tool is unavailable, not just gated behind confirm. See [Security](#security) for why this matters. |
-| `AFFSET_REQUEST_TIMEOUT_MS` | Optional, default `30000`. Per-request HTTP timeout in milliseconds (`1000`–`300000`).                                                                                                                                                                                                              |
-| `AFFSET_DOCS_URL`           | Optional, default `https://affset.com`. Origin the API-reference [documentation resources](#documentation-resources) are fetched from (origin only, no path). Fetched anonymously — no API key is sent here.                                                                                        |
+| Variable                    | Description                                                                                                                                                                                                                                                                                                         |
+| --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `AFFSET_BASE_URL`           | Origin of the affset API, e.g. `https://api.affset.com` (no path/query/credentials). Must be `https` unless the host is `localhost`/`127.0.0.1`/`::1` — plain http would send the API key in cleartext.                                                                                                             |
+| `AFFSET_API_KEY`            | Tenant API key. Its namespace must match `AFFSET_NAMESPACE`.                                                                                                                                                                                                                                                        |
+| `AFFSET_NAMESPACE`          | Tenant namespace (lowercase letters, numbers, hyphens; 3–63 chars — same rules as signup).                                                                                                                                                                                                                          |
+| `AFFSET_READ_ONLY`          | Optional, default `false`. Set to `true`/`1` to register only the read-only tools (`whoami`, `get_stats`, `get_campaign`, every `list_*`, `get_zone_url`, `get_tracking_link`) — every create/update/delete/cut tool is unavailable, not just gated behind confirm. See [Security](#security) for why this matters. |
+| `AFFSET_REQUEST_TIMEOUT_MS` | Optional, default `30000`. Per-request HTTP timeout in milliseconds (`1000`–`300000`).                                                                                                                                                                                                                              |
+| `AFFSET_DOCS_URL`           | Optional, default `https://affset.com`. Origin the API-reference [documentation resources](#documentation-resources) are fetched from (origin only, no path). Fetched anonymously — no API key is sent here.                                                                                                        |
 
 See [`.env.example`](.env.example).
 
 ## Install
+
+Requires Node.js 22.13 or newer.
 
 ### From npm (recommended)
 
@@ -291,6 +293,44 @@ for `"command": "node"`, `"args": ["/absolute/path/to/affset-mcp/dist/index.js"]
   startup — so it could not use a tenant it just created. Sign up in the dashboard,
   then point a server instance at the new namespace.
 
+## Using as a library
+
+Since 0.2.0 the package doubles as a runtime-agnostic library: everything the
+stdio server registers (tools, docs resources, read-only stripping) is exposed
+as one helper that runs on any fetch-capable runtime — Node ≥22.13 or Cloudflare
+Workers. The hosted affset MCP gateway (`mcp.affset.com`, in progress) consumes
+exactly this surface, so the remote roster can never drift from stdio.
+
+```ts
+import { registerAffsetTools, type Config } from "@affset/mcp/core";
+
+const config: Config = {
+  baseUrl: "https://api.affset.com",
+  docsBaseUrl: "https://affset.com",
+  apiKey: perRequestKey, // e.g. an OAuth grant's backing credential
+  namespace: tenantNamespace,
+  requestTimeoutMs: 30_000,
+  readOnly: scope === "read", // never registers tools without readOnlyHint: true
+};
+
+registerAffsetTools(server, config); // server: your own McpServer instance
+```
+
+`registerAffsetTools` accepts your `McpServer` structurally, so your own
+`@modelcontextprotocol/sdk` install works — no need to match this package's
+copy. Env-var loading (`AFFSET_*`) is deliberately not part of the library
+surface; it belongs to the stdio entrypoint only. A third, optional
+`{ onToolCall }` argument reports only tool name, duration, and success/error
+status for transport-owned audit logging; arguments and output are never
+included.
+
+The library validates and normalizes `config` before registering anything.
+Remote API origins must use HTTPS (plain HTTP is accepted only on loopback),
+origins cannot contain credentials or paths, and invalid namespaces, timeouts,
+API keys, or non-boolean read-only settings fail closed at startup. The public
+declarations do not require Node ambient types, so the same import type-checks
+in Workers and other web-standard runtimes.
+
 ## Development
 
 ```bash
@@ -307,12 +347,15 @@ npm run dev          # watch mode
 
 - No secrets in the repo; credentials come from the environment at runtime.
 - `AFFSET_BASE_URL` must be `https` unless the host is loopback — no cleartext API key.
+- Tenant API responses are streamed under a 5 MB hard limit; larger bodies are
+  cancelled before parsing or reaching model context.
 - stdout is the JSON-RPC channel — all logs go to stderr.
 - `list_team` redacts API tokens.
 - All mutations (including creates) follow **show → confirm → apply**.
 - Create a **dedicated, least-privilege API key** for the MCP rather than reusing an
-  owner key, and give it an expiry — affset's RBAC roles (owner/manager/publisher/
-  advertiser) apply to MCP tool calls exactly as they do to the dashboard.
+  owner key, and give it an expiry — affset's RBAC roles (owner / manager /
+  publisher / advertiser / advertiser_manager / publisher_manager) apply to MCP
+  tool calls exactly as they do to the dashboard.
 - Pin GitHub installs to a reviewed commit or tag in long-lived environments. A
   floating `main` spec can run newer repository code the next time `npx` resolves it.
 

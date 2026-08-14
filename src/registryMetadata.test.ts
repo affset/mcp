@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
+import { VERSION } from "./version.js";
 
 interface PackageJson {
   name: string;
@@ -41,6 +42,7 @@ describe("MCP Registry metadata", () => {
     assert.ok(registryPackage, "server.json must declare the npm package");
     assert.equal(packageJson.mcpName, serverJson.name);
     assert.equal(packageJson.version, serverJson.version);
+    assert.equal(packageJson.version, VERSION);
     assert.equal(packageJson.version, registryPackage.version);
     assert.equal(packageJson.version, packageLock.version);
     assert.equal(packageJson.name, packageLock.name);

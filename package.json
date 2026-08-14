@@ -1,6 +1,6 @@
 {
   "name": "@affset/mcp",
-  "version": "0.1.4",
+  "version": "0.2.0",
   "mcpName": "io.github.affset/mcp",
   "description": "MCP server for the affset ad platform — stats, campaigns, zones, payouts, targeting, sub labels, and team from your chat client.",
   "type": "module",
@@ -20,6 +20,19 @@
   "bin": {
     "affset-mcp": "dist/index.js"
   },
+  "main": "./dist/core.js",
+  "types": "./dist/core.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/core.d.ts",
+      "default": "./dist/core.js"
+    },
+    "./core": {
+      "types": "./dist/core.d.ts",
+      "default": "./dist/core.js"
+    },
+    "./package.json": "./package.json"
+  },
   "files": [
     "dist",
     "!dist/**/*.test.*",
@@ -28,7 +41,7 @@
     ".env.example"
   ],
   "engines": {
-    "node": ">=18"
+    "node": ">=22.13.0"
   },
   "scripts": {
     "build": "tsc",
