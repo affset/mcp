@@ -3,13 +3,19 @@
   "name": "io.github.affset/mcp",
   "title": "affset",
   "description": "Run affset from chat: stats, campaigns, zones, payouts, targeting, and team.",
-  "websiteUrl": "https://github.com/affset/mcp#readme",
+  "websiteUrl": "https://affset.com/integrations",
   "repository": {
     "url": "https://github.com/affset/mcp",
     "source": "github",
     "id": "1315956160"
   },
   "version": "0.2.0",
+  "remotes": [
+    {
+      "type": "streamable-http",
+      "url": "https://mcp.affset.com/mcp"
+    }
+  ],
   "packages": [
     {
       "registryType": "npm",

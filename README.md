@@ -4,8 +4,21 @@ An [MCP](https://modelcontextprotocol.io) server that lets a media buyer run aff
 from a chat client — pull stats, manage campaigns/zones/team, payouts, targeting,
 sub labels, and cut underperforming zones in plain language, no dashboard.
 
-It's a thin wrapper over the existing affset tenant API (`Bearer` token +
-`X-Namespace`). One server instance serves one tenant.
+The tools wrap the existing affset tenant API. Connect through the hosted
+endpoint (OAuth, no API key) or run this package locally (`Bearer` token +
+`X-Namespace`). One connection serves one tenant.
+
+**Fastest way to connect — the hosted endpoint.** Add
+`https://mcp.affset.com/mcp` as a remote MCP server in Claude (web or desktop),
+Cursor, Claude Code, or any client that supports streamable HTTP with OAuth:
+paste the URL, sign in with your affset email, keep **Read-only** (the consent
+default) or grant full access. Every connection shows up on the dashboard
+Integrations page and can be revoked individually. Setup guide:
+[affset.com/integrations](https://affset.com/integrations).
+
+The npm package below is the self-host path: same tool roster, runs on your
+machine with an API key you manage yourself. Stdio defaults to full access
+unless you set `AFFSET_READ_ONLY=true`.
 
 ## Tools
 
@@ -88,7 +101,8 @@ under `AFFSET_READ_ONLY`.
 
 ## Configuration
 
-All config comes from environment variables (never hard-coded):
+Self-host (stdio) only — hosted connections do not use these variables. All
+config comes from the environment (never hard-coded):
 
 | Variable                    | Description                                                                                                                                                                                                                                                                                                         |
 | --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -103,9 +117,28 @@ See [`.env.example`](.env.example).
 
 ## Install
 
-Requires Node.js 22.13 or newer.
+### Hosted (fastest — no install)
 
-### From npm (recommended)
+Add the remote server in your MCP client and approve access in the browser.
+OAuth is discovered from the endpoint — do not paste an API key, and do not add
+an `Authorization` header.
+
+- **Claude (web or desktop)** — Customize → Connectors → **+** → Add custom connector →
+  `https://mcp.affset.com/mcp`.
+- **Cursor** — Settings → MCP → Add server, transport "streamable HTTP", same URL.
+- **Claude Code** — `claude mcp add --transport http affset https://mcp.affset.com/mcp`
+  then authenticate with `/mcp`.
+
+You sign in with your affset email (magic link). **Read-only** is selected on
+the consent screen unless you switch to **Full access**. The connection gets
+its own scoped credential — your API key is never involved — and appears on
+the dashboard's Integrations page, where it can be revoked at any time. Full
+guide: [affset.com/integrations](https://affset.com/integrations).
+
+The self-host paths below run the same tool roster over stdio and require
+Node.js 22.13 or newer.
+
+### From npm (recommended for self-hosting)
 
 No clone, no build — your MCP client runs it with `npx`. For **Claude Desktop**
 (`claude_desktop_config.json`):
@@ -298,7 +331,7 @@ for `"command": "node"`, `"args": ["/absolute/path/to/affset-mcp/dist/index.js"]
 Since 0.2.0 the package doubles as a runtime-agnostic library: everything the
 stdio server registers (tools, docs resources, read-only stripping) is exposed
 as one helper that runs on any fetch-capable runtime — Node ≥22.13 or Cloudflare
-Workers. The hosted affset MCP gateway (`mcp.affset.com`, in progress) consumes
+Workers. The hosted affset MCP gateway (`mcp.affset.com`) consumes
 exactly this surface, so the remote roster can never drift from stdio.
 
 ```ts
@@ -345,17 +378,23 @@ npm run dev          # watch mode
 
 ## Security
 
-- No secrets in the repo; credentials come from the environment at runtime.
+- **Hosted (`https://mcp.affset.com/mcp`):** OAuth via magic link. Read-only is
+  the consent default (mutating tools are never registered). Full access still
+  dry-runs mutations until `confirm: true`. Revoke from the dashboard
+  Integrations page. Nothing on `mcp.affset.com` / `oauth.affset.com` asks for
+  an API key.
+- **Self-host (stdio):** no secrets in the repo; credentials come from the
+  environment at runtime. Create a **dedicated, least-privilege, expiring API
+  key** rather than reusing an owner key.
 - `AFFSET_BASE_URL` must be `https` unless the host is loopback — no cleartext API key.
 - Tenant API responses are streamed under a 5 MB hard limit; larger bodies are
   cancelled before parsing or reaching model context.
 - stdout is the JSON-RPC channel — all logs go to stderr.
 - `list_team` redacts API tokens.
 - All mutations (including creates) follow **show → confirm → apply**.
-- Create a **dedicated, least-privilege API key** for the MCP rather than reusing an
-  owner key, and give it an expiry — affset's RBAC roles (owner / manager /
-  publisher / advertiser / advertiser_manager / publisher_manager) apply to MCP
-  tool calls exactly as they do to the dashboard.
+- affset's RBAC roles (owner / manager / publisher / advertiser /
+  advertiser_manager / publisher_manager) apply to MCP tool calls exactly as
+  they do to the dashboard.
 - Pin GitHub installs to a reviewed commit or tag in long-lived environments. A
   floating `main` spec can run newer repository code the next time `npx` resolves it.
 
@@ -375,10 +414,12 @@ Mitigations in place:
 - `confirm: true` on mutating tools is a **model-level** safety net, not a security
   boundary — a model that has been steered by injected content can supply
   `confirm: true` itself. The only real boundary is your MCP client's per-call tool
-  approval and **`AFFSET_READ_ONLY`**.
+  approval plus **read-only mode** (hosted: consent default; stdio:
+  **`AFFSET_READ_ONLY=true`**).
 
-**Set `AFFSET_READ_ONLY=true`** for any session where you're mainly reading stats/
-conversions, especially with an MCP client that auto-approves tool calls. It removes
-every mutation tool from the server entirely — not hidden behind a prompt, unavailable
-to call. Reserve a read-write instance (or a separate one) for sessions where you're
-actively managing campaigns/zones/payouts and are reviewing each confirm yourself.
+Prefer read-only for any session where you're mainly reading stats/conversions,
+especially with an MCP client that auto-approves tool calls. It removes every
+mutation tool from the server entirely — not hidden behind a prompt, unavailable
+to call. Reserve full access (hosted) or a read-write stdio instance for sessions
+where you're actively managing campaigns/zones/payouts and are reviewing each
+confirm yourself.

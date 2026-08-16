@@ -18,6 +18,12 @@ interface PackageLock {
 interface ServerJson {
   name: string;
   version: string;
+  websiteUrl: string;
+  remotes: Array<{
+    type: string;
+    url: string;
+    headers?: unknown;
+  }>;
   packages: Array<{
     registryType: string;
     identifier: string;
@@ -49,5 +55,13 @@ describe("MCP Registry metadata", () => {
     assert.equal(packageJson.version, packageLock.packages[""].version);
     assert.equal(packageJson.name, packageLock.packages[""].name);
     assert.equal(registryPackage.transport.type, "stdio");
+    assert.equal(serverJson.websiteUrl, "https://affset.com/integrations");
+    assert.equal(serverJson.remotes.length, 1);
+    const remote = serverJson.remotes[0];
+    assert.equal(remote.type, "streamable-http");
+    assert.equal(remote.url, "https://mcp.affset.com/mcp");
+    // A static Authorization (or other) header would make clients prompt for a
+    // token instead of discovering OAuth from the hosted endpoint.
+    assert.equal("headers" in remote, false);
   });
 });

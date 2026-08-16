@@ -20,7 +20,15 @@ through the same address.
 
 ## Trust model — read this before deploying
 
-- **Credentials come from the environment (stdio) or the caller (library).**
+- **Hosted connections (`https://mcp.affset.com/mcp`) use OAuth, not your API
+  key.** Sign-in is a magic link; the consent screen defaults to **read**
+  (mutating tools are never registered) or you can grant **full**. Each
+  connection mints its own scoped, revocable credential, listed on the tenant
+  dashboard's Integrations page. Nothing on `mcp.affset.com` or
+  `oauth.affset.com` asks for an API key — if a client prompts for one, that is
+  not this server. The hosted gateway is a separate deploy; this repository
+  supplies the tool roster it registers.
+- **Stdio / library credentials come from the environment or the caller.**
   `AFFSET_API_KEY` / `config.apiKey` is never read from disk, written, or logged
   by this server. Point it at an `https` origin (enforced for non-loopback hosts)
   so the bearer token is never sent in cleartext. Library consumers pass the same
@@ -37,7 +45,8 @@ through the same address.
   a pixel fire), so their bytes are controlled by whoever generates the traffic —
   and they land in your model's context. The server length-caps and escapes these
   fields and labels the conversion payload block as untrusted data, but the robust
-  control is **`AFFSET_READ_ONLY=true`**, which removes every mutating tool from
+  control is **read-only mode** — hosted consent default, or
+  **`AFFSET_READ_ONLY=true`** on stdio — which removes every mutating tool from
   the server entirely. Prefer it for reporting sessions and for any MCP client that
   auto-approves tool calls. `confirm: true` on mutating tools (including creates)
   is a model-level guard, not a security boundary.

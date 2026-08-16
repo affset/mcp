@@ -6,6 +6,21 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+
+- `server.json` advertises the hosted remote `https://mcp.affset.com/mcp`
+  (streamable HTTP) alongside the npm/stdio package. Clients discover OAuth
+  from the endpoint; the registry entry does not ask for a static
+  `Authorization` header.
+
+### Changed
+
+- Registry `websiteUrl` now points at the public integration guide
+  (`https://affset.com/integrations`).
+- README and SECURITY.md lead with the hosted connect path (read-only is the
+  consent default). Stdio/`npx` remains the self-host option. No runtime or
+  stdio behavior changes.
+
 ## [0.2.0]
 
 ### Added
