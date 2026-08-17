@@ -49,7 +49,7 @@ unless you set `AFFSET_READ_ONLY=true`.
 | `remove_targeting_rule` | Remove one targeting rule by id or type+method. **Dry-run by default**; `confirm: true` to apply.                                                                                                                                                                                                                                                                                                                                |
 | `list_sub_labels`       | List tenant display names for sub1–sub5.                                                                                                                                                                                                                                                                                                                                                                                         |
 | `set_sub_labels`        | Set or clear sub labels (partial; `null` clears). **Dry-run by default**; `confirm: true` to apply.                                                                                                                                                                                                                                                                                                                              |
-| `list_conversions`      | List conversion audit records (payout, spend, pixel type, payload, postback). Optional client-side filters on the current page.                                                                                                                                                                                                                                                                                                  |
+| `list_conversions`      | List conversion audit records (payout, spend, pixel type, payload, postback). `paid_only` filters server-side; other optional filters are client-side on the current page.                                                                                                                                                                                                                                                       |
 
 ### Which URL do I give the network?
 
@@ -268,7 +268,9 @@ for `"command": "node"`, `"args": ["/absolute/path/to/affset-mcp/dist/index.js"]
 >
 > **show recent conversions** → `list_conversions()`
 >
-> **find $0 payouts (goal miss?)** → `list_conversions(zero_payout: true)`
+> **hide informative conversions (goal-type misses)** → `list_conversions(paid_only: true)`
+>
+> **find $0 payouts (no rule / still on this page)** → `list_conversions(zero_payout: true)`
 >
 > **lookup by source click id** → `list_conversions(source_click_id: "abc123")`
 
@@ -310,9 +312,13 @@ for `"command": "node"`, `"args": ["/absolute/path/to/affset-mcp/dist/index.js"]
   while the campaign kept buying); `list_targeting_types` flags them. Use
   `unique_users` (`visits/hours`) for frequency capping.
 - **`list_conversions`** is the conversion audit trail (not aggregated stats). The API
-  has no campaign/zone/date filters; optional filters apply to the current page only.
-  Rows do not include campaign_id/zone_id. Publisher-side roles do not see `spend` and
-  advertiser-side roles do not see `payout`, so `zero_payout` needs a role that can.
+  has no campaign/zone/date filters; `paid_only` is the one server-side filter (`true`
+  drops rows recorded with `postback_skipped=non_goal_type` — pixel type missed the
+  campaign's `payout_goal_type`; silent conversions and other skip reasons still come
+  back — this is not a payout>0 filter). The other optional filters apply to the current
+  page only. Rows do not include campaign_id/zone_id. Publisher-side roles do not see
+  `spend` and advertiser-side roles do not see `payout`, so `zero_payout` needs a role
+  that can; `paid_only` does not (it keys on `postback_skipped`, not `payout`).
 - **`create_team_member`** creates the API key directly (like the dashboard's "Add Team
   Member") — it does not send an invite email. Hand the returned key to the person
   yourself. Revoking/removing a team member is not yet a tool; use the dashboard's

@@ -17,15 +17,29 @@ const SORT_FIELDS = ["created_at", "ad_event_id", "click_id"] as const;
 export const LIST_CONVERSIONS_DESCRIPTION =
   "List recent conversion records (audit trail) for debugging payouts and pixel params. " +
   "Shows payout, spend, pixel `type`, source_click_id, click_id, subs, postback outcome, " +
-  "and the raw payload. API supports pagination/sort only — optional click_id / " +
-  "source_click_id / type / payload_contains / zero_payout filters run client-side on " +
-  "the current page. Does not include campaign_id/zone_id (not returned by the API).";
+  "and the raw payload. `paid_only: true` drops informative conversions server-side — " +
+  "rows recorded with postback_skipped=non_goal_type because the pixel type missed the " +
+  "campaign's payout_goal_type. Silent conversions and other skip reasons still come back " +
+  "(not a payout>0 filter). Default false, all rows. Beyond pagination/sort/paid_only, " +
+  "the optional click_id / source_click_id / type / payload_contains / zero_payout filters " +
+  "run client-side on the current page. Does not include campaign_id/zone_id (not returned " +
+  "by the API).";
 
 export const listConversionsInputSchema = {
   limit: z.number().int().min(1).max(100).default(20).describe("Page size (1–100). Default 20."),
   offset: z.number().int().min(0).default(0).describe("Pagination offset. Default 0."),
   sort: z.enum(SORT_FIELDS).default("created_at").describe("Sort field. Default created_at."),
   order: z.enum(["asc", "desc"]).default("desc").describe("Sort order. Default desc."),
+  paid_only: z
+    .boolean()
+    .optional()
+    .describe(
+      "true drops informative conversions — rows recorded with " +
+        "postback_skipped=non_goal_type because the pixel type missed the campaign's " +
+        "payout_goal_type. Silent conversions and other skip reasons still come back " +
+        "(not a payout>0 filter). Server-side (filters the whole dataset, not just this page). " +
+        "Works without payout visibility. Default false (all rows).",
+    ),
   click_id: z
     .string()
     .min(1)
@@ -62,6 +76,7 @@ type ListConversionsArgs = {
   offset: number;
   sort: (typeof SORT_FIELDS)[number];
   order: "asc" | "desc";
+  paid_only?: boolean;
   click_id?: string;
   source_click_id?: string;
   type?: string;
@@ -74,13 +89,17 @@ export async function listConversions(
   args: ListConversionsArgs,
 ): Promise<CallToolResult> {
   try {
+    const query: Record<string, string | number> = {
+      limit: args.limit,
+      offset: args.offset,
+      sort: args.sort,
+      order: args.order,
+    };
+    // The API accepts only the literal strings "true"/"false"; omitted = false.
+    if (args.paid_only !== undefined) query.paid_only = String(args.paid_only);
+
     const [data, settings] = await Promise.all([
-      client.get<ConversionsResponse>("/api/conversions", {
-        limit: args.limit,
-        offset: args.offset,
-        sort: args.sort,
-        order: args.order,
-      }),
+      client.get<ConversionsResponse>("/api/conversions", query),
       // One read covers both the sub labels and the zone timestamps are shown in.
       client.get<TenantSettingsResponse>("/api/tenant").catch((): TenantSettingsResponse => ({})),
     ]);
@@ -105,6 +124,7 @@ export async function listConversions(
     const clientFiltered = filtered.length !== all.length;
 
     const filterBits: string[] = [];
+    if (args.paid_only) filterBits.push("paid_only");
     if (args.click_id) filterBits.push(`click_id=${args.click_id}`);
     if (args.source_click_id) filterBits.push(`source_click_id=${args.source_click_id}`);
     if (args.type) filterBits.push(`type=${args.type}`);
@@ -135,7 +155,8 @@ export async function listConversions(
             ]
           : []),
         "",
-        "_API has no campaign/zone/date filters — page with limit/offset, or filter this page._",
+        "_API has no campaign/zone/date filters. `paid_only` is server-side; other optional " +
+          "filters apply to this page. Page with limit/offset._",
         payoutHidden
           ? "_`payout` is hidden for this role — the column shows `—` for every row._"
           : "_`$0` payout with a non-empty type often means payout_goal_type mismatch or no payout rule._",

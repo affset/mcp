@@ -8,6 +8,12 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 
+- `list_conversions` gained an optional `paid_only` input, forwarded to
+  `GET /api/conversions`: `true` drops informative conversions — rows recorded
+  with `postback_skipped=non_goal_type` because the pixel type missed the
+  campaign's `payout_goal_type`. Silent conversions and other skip reasons still
+  come back (not a payout>0 filter). Unset/false keeps returning all rows
+  (backward compatible).
 - `server.json` advertises the hosted remote `https://mcp.affset.com/mcp`
   (streamable HTTP) alongside the npm/stdio package. Clients discover OAuth
   from the endpoint; the registry entry does not ask for a static
