@@ -4,4 +4,4 @@
  * package.json here would break bundlers; a sync test guards the duplicate
  * (see registerTools.test.ts).
  */
-export const VERSION = "0.2.0";
+export const VERSION = "0.2.1";

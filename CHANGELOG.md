@@ -6,6 +6,8 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+## [0.2.1]
+
 ### Added
 
 - `list_conversions` gained an optional `paid_only` input, forwarded to
