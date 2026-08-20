@@ -14,6 +14,13 @@ to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   campaign's `payout_goal_type`. Silent conversions and other skip reasons still
   come back (not a payout>0 filter). Unset/false keeps returning all rows
   (backward compatible).
+- `get_stats` gained a `paid_only` input, forwarded to `GET /api/stats`, with
+  the same semantics as `list_conversions` (drops `non_goal_type` informative
+  conversions from the count and CR; money sums are unaffected). Unlike the
+  API — and unlike `list_conversions` — it **defaults to true**, matching the
+  dashboard, so CR is not inflated above 100% by lp_view-style pings. Set
+  `false` for the raw count. Only recent (unfolded) events are filtered;
+  conversions already in daily archives stay included.
 - `server.json` advertises the hosted remote `https://mcp.affset.com/mcp`
   (streamable HTTP) alongside the npm/stdio package. Clients discover OAuth
   from the endpoint; the registry entry does not ask for a static

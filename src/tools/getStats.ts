@@ -10,12 +10,15 @@ export const GET_STATS_DESCRIPTION =
   "Pull affset traffic stats grouped by a single dimension. Returns impressions, clicks, " +
   "conversions, CR, payout, media cost and ROI as a table. Drill down by calling " +
   "repeatedly: first group_by=date or campaign_id, then narrow with filters " +
-  "(campaign_ids, zone_ids, sub1..sub5, conversion_type, advertiser_email, publisher_email) " +
-  "and change group_by (zone_id, sub1, ...). " +
+  "(campaign_ids, zone_ids, sub1..sub5, conversion_type, advertiser_email, publisher_email, " +
+  "paid_only) and change group_by (zone_id, sub1, ...). " +
   'Sub columns are titled with the tenant\'s configured labels (e.g. "Zone (sub1)") ' +
   "when set; group_by/filters always take the raw subN key. " +
   "conversion_type only matches conversion rows, so filtering by it zeroes impressions, clicks " +
   "and media cost — it narrows to conversions of that type, not clicks that led to one. " +
+  "paid_only defaults to true (same as the dashboard): conversions and CR exclude informative " +
+  "pings whose pixel type missed payout_goal_type, so CR is not inflated above 100%. Set " +
+  "false for the raw unfiltered count. " +
   "ROI is blank until traffic cost has been imported for the slice. " +
   "group_by=advertiser_email / publisher_email break down by team member; the API limits them " +
   "to owner/manager plus the matching side's manager role (403 otherwise). " +
@@ -76,6 +79,15 @@ export const getStatsInputSchema = {
       "Narrow to one publisher's zones, independent of group_by. Owner/manager: any publisher. " +
         "publisher_manager: only one of their own assigned publishers (else 403). Other roles: 403.",
     ),
+  paid_only: z
+    .boolean()
+    .default(true)
+    .describe(
+      "Drop informative conversions (postback_skipped=non_goal_type, e.g. lp_view pings that " +
+        "missed payout_goal_type) from the conversions count and CR. Silent conversions still " +
+        "count — not a payout>0 filter. Default true (matches the dashboard) so CR is not " +
+        "inflated above 100%. Set false for the raw count.",
+    ),
 };
 
 type GetStatsArgs = {
@@ -93,6 +105,7 @@ type GetStatsArgs = {
   conversion_type?: string;
   advertiser_email?: string;
   publisher_email?: string;
+  paid_only?: boolean;
 };
 
 export async function getStats(client: AffsetClient, args: GetStatsArgs): Promise<CallToolResult> {
@@ -100,10 +113,15 @@ export async function getStats(client: AffsetClient, args: GetStatsArgs): Promis
     const timeZone = await client.getTenantTimezone();
     const { from, to, label } = resolveRange(args.range, args.from, args.to, timeZone);
 
+    // The API accepts only the literal strings "true"/"false"; omitted = false.
+    // MCP (and the dashboard) default to true so CR isn't inflated by lp_view
+    // pings, so we always send the resolved value rather than omitting it.
+    const paidOnly = args.paid_only ?? true;
     const query: Record<string, string | number> = {
       from,
       to,
       group_by: args.group_by,
+      paid_only: String(paidOnly),
     };
     if (args.campaign_ids?.length) query.campaign_ids = args.campaign_ids.join(",");
     if (args.zone_ids?.length) query.zone_ids = args.zone_ids.join(",");
@@ -122,12 +140,13 @@ export async function getStats(client: AffsetClient, args: GetStatsArgs): Promis
     const data = await client.get<StatsResponse>("/api/stats", query);
     const table = formatStatsTable(data.stats ?? [], args.group_by, data.sub_labels);
     const heading = groupHeader(args.group_by, data.sub_labels);
+    const paidNote = paidOnly ? "" : " (including informative conversions)";
 
     return {
       content: [
         {
           type: "text",
-          text: `**Stats — ${label}, by ${heading}**\n\n${table}`,
+          text: `**Stats — ${label}, by ${heading}**${paidNote}\n\n${table}`,
         },
       ],
     };
